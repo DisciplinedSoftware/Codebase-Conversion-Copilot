@@ -49,7 +49,8 @@ fn make_tri_f32(n: usize) -> Vec<f32> {
 
 fn bench_l1_dasum(c: &mut Criterion) {
     let mut g = c.benchmark_group("level1/dasum");
-    for &n in &[64usize, 512, 2048] {
+    g.measurement_time(Duration::from_secs(10));
+    for &n in &[1_000_000usize, 4_000_000, 16_000_000] {
         let x = make_vec_f64(n);
         g.bench_with_input(BenchmarkId::from_parameter(n), &n, |b, _| {
             b.iter(|| level1::asum(n, &x, 1))
@@ -60,7 +61,8 @@ fn bench_l1_dasum(c: &mut Criterion) {
 
 fn bench_l1_sasum(c: &mut Criterion) {
     let mut g = c.benchmark_group("level1/sasum");
-    for &n in &[64usize, 512, 2048] {
+    g.measurement_time(Duration::from_secs(10));
+    for &n in &[1_000_000usize, 4_000_000, 16_000_000] {
         let x = make_vec_f32(n);
         g.bench_with_input(BenchmarkId::from_parameter(n), &n, |b, _| {
             b.iter(|| level1::asum(n, &x, 1))
@@ -71,7 +73,8 @@ fn bench_l1_sasum(c: &mut Criterion) {
 
 fn bench_l1_daxpy(c: &mut Criterion) {
     let mut g = c.benchmark_group("level1/daxpy");
-    for &n in &[64usize, 512, 2048] {
+    g.measurement_time(Duration::from_secs(10));
+    for &n in &[1_000_000usize, 4_000_000, 16_000_000] {
         let x = make_vec_f64(n);
         g.bench_with_input(BenchmarkId::from_parameter(n), &n, |b, _| {
             let mut y = make_vec_f64(n);
@@ -83,7 +86,8 @@ fn bench_l1_daxpy(c: &mut Criterion) {
 
 fn bench_l1_saxpy(c: &mut Criterion) {
     let mut g = c.benchmark_group("level1/saxpy");
-    for &n in &[64usize, 512, 2048] {
+    g.measurement_time(Duration::from_secs(10));
+    for &n in &[1_000_000usize, 4_000_000, 16_000_000] {
         let x = make_vec_f32(n);
         g.bench_with_input(BenchmarkId::from_parameter(n), &n, |b, _| {
             let mut y = make_vec_f32(n);
@@ -95,7 +99,8 @@ fn bench_l1_saxpy(c: &mut Criterion) {
 
 fn bench_l1_ddot(c: &mut Criterion) {
     let mut g = c.benchmark_group("level1/ddot");
-    for &n in &[64usize, 512, 2048] {
+    g.measurement_time(Duration::from_secs(10));
+    for &n in &[1_000_000usize, 4_000_000, 16_000_000] {
         let x = make_vec_f64(n);
         let y = make_vec_f64(n);
         g.bench_with_input(BenchmarkId::from_parameter(n), &n, |b, _| {
@@ -107,7 +112,8 @@ fn bench_l1_ddot(c: &mut Criterion) {
 
 fn bench_l1_sdot(c: &mut Criterion) {
     let mut g = c.benchmark_group("level1/sdot");
-    for &n in &[64usize, 512, 2048] {
+    g.measurement_time(Duration::from_secs(10));
+    for &n in &[1_000_000usize, 4_000_000, 16_000_000] {
         let x = make_vec_f32(n);
         let y = make_vec_f32(n);
         g.bench_with_input(BenchmarkId::from_parameter(n), &n, |b, _| {
@@ -119,7 +125,8 @@ fn bench_l1_sdot(c: &mut Criterion) {
 
 fn bench_l1_dnrm2(c: &mut Criterion) {
     let mut g = c.benchmark_group("level1/dnrm2");
-    for &n in &[64usize, 512, 2048] {
+    g.measurement_time(Duration::from_secs(10));
+    for &n in &[1_000_000usize, 4_000_000, 16_000_000] {
         let x = make_vec_f64(n);
         g.bench_with_input(BenchmarkId::from_parameter(n), &n, |b, _| {
             b.iter(|| level1::nrm2(n, &x, 1))
@@ -130,7 +137,8 @@ fn bench_l1_dnrm2(c: &mut Criterion) {
 
 fn bench_l1_snrm2(c: &mut Criterion) {
     let mut g = c.benchmark_group("level1/snrm2");
-    for &n in &[64usize, 512, 2048] {
+    g.measurement_time(Duration::from_secs(10));
+    for &n in &[1_000_000usize, 4_000_000, 16_000_000] {
         let x = make_vec_f32(n);
         g.bench_with_input(BenchmarkId::from_parameter(n), &n, |b, _| {
             b.iter(|| level1::nrm2(n, &x, 1))
@@ -141,7 +149,8 @@ fn bench_l1_snrm2(c: &mut Criterion) {
 
 fn bench_l1_dscal(c: &mut Criterion) {
     let mut g = c.benchmark_group("level1/dscal");
-    for &n in &[64usize, 512, 2048] {
+    g.measurement_time(Duration::from_secs(10));
+    for &n in &[1_000_000usize, 4_000_000, 16_000_000] {
         g.bench_with_input(BenchmarkId::from_parameter(n), &n, |b, _| {
             let mut x = make_vec_f64(n);
             b.iter(|| level1::scal(n, 2.0f64, &mut x, 1))
@@ -152,7 +161,8 @@ fn bench_l1_dscal(c: &mut Criterion) {
 
 fn bench_l1_sscal(c: &mut Criterion) {
     let mut g = c.benchmark_group("level1/sscal");
-    for &n in &[64usize, 512, 2048] {
+    g.measurement_time(Duration::from_secs(10));
+    for &n in &[1_000_000usize, 4_000_000, 16_000_000] {
         g.bench_with_input(BenchmarkId::from_parameter(n), &n, |b, _| {
             let mut x = make_vec_f32(n);
             b.iter(|| level1::scal(n, 2.0f32, &mut x, 1))
@@ -163,7 +173,8 @@ fn bench_l1_sscal(c: &mut Criterion) {
 
 fn bench_l1_dswap(c: &mut Criterion) {
     let mut g = c.benchmark_group("level1/dswap");
-    for &n in &[64usize, 512, 2048] {
+    g.measurement_time(Duration::from_secs(10));
+    for &n in &[1_000_000usize, 4_000_000, 16_000_000] {
         g.bench_with_input(BenchmarkId::from_parameter(n), &n, |b, _| {
             let mut x = make_vec_f64(n);
             let mut y = make_vec_f64(n);
@@ -175,7 +186,8 @@ fn bench_l1_dswap(c: &mut Criterion) {
 
 fn bench_l1_sswap(c: &mut Criterion) {
     let mut g = c.benchmark_group("level1/sswap");
-    for &n in &[64usize, 512, 2048] {
+    g.measurement_time(Duration::from_secs(10));
+    for &n in &[1_000_000usize, 4_000_000, 16_000_000] {
         g.bench_with_input(BenchmarkId::from_parameter(n), &n, |b, _| {
             let mut x = make_vec_f32(n);
             let mut y = make_vec_f32(n);
@@ -189,7 +201,7 @@ fn bench_l1_sswap(c: &mut Criterion) {
 
 fn bench_l2_dgemv(c: &mut Criterion) {
     let mut g = c.benchmark_group("level2/dgemv");
-    for &n in &[64usize, 512, 2048] {
+    for &n in &[512usize, 2048, 4096] {
         let a = make_mat_f64(n, n);
         let x = make_vec_f64(n);
         g.bench_with_input(BenchmarkId::from_parameter(n), &n, |b, _| {
@@ -202,7 +214,7 @@ fn bench_l2_dgemv(c: &mut Criterion) {
 
 fn bench_l2_sgemv(c: &mut Criterion) {
     let mut g = c.benchmark_group("level2/sgemv");
-    for &n in &[64usize, 512, 2048] {
+    for &n in &[512usize, 2048, 4096] {
         let a = make_mat_f32(n, n);
         let x = make_vec_f32(n);
         g.bench_with_input(BenchmarkId::from_parameter(n), &n, |b, _| {
@@ -215,7 +227,7 @@ fn bench_l2_sgemv(c: &mut Criterion) {
 
 fn bench_l2_dger(c: &mut Criterion) {
     let mut g = c.benchmark_group("level2/dger");
-    for &n in &[64usize, 512, 2048] {
+    for &n in &[512usize, 2048, 4096] {
         let x = make_vec_f64(n);
         let y = make_vec_f64(n);
         g.bench_with_input(BenchmarkId::from_parameter(n), &n, |b, _| {
@@ -228,7 +240,7 @@ fn bench_l2_dger(c: &mut Criterion) {
 
 fn bench_l2_sger(c: &mut Criterion) {
     let mut g = c.benchmark_group("level2/sger");
-    for &n in &[64usize, 512, 2048] {
+    for &n in &[512usize, 2048, 4096] {
         let x = make_vec_f32(n);
         let y = make_vec_f32(n);
         g.bench_with_input(BenchmarkId::from_parameter(n), &n, |b, _| {
@@ -241,7 +253,7 @@ fn bench_l2_sger(c: &mut Criterion) {
 
 fn bench_l2_dsymv(c: &mut Criterion) {
     let mut g = c.benchmark_group("level2/dsymv");
-    for &n in &[64usize, 512, 2048] {
+    for &n in &[512usize, 2048, 4096] {
         let a = make_mat_f64(n, n);
         let x = make_vec_f64(n);
         g.bench_with_input(BenchmarkId::from_parameter(n), &n, |b, _| {
@@ -254,7 +266,7 @@ fn bench_l2_dsymv(c: &mut Criterion) {
 
 fn bench_l2_ssymv(c: &mut Criterion) {
     let mut g = c.benchmark_group("level2/ssymv");
-    for &n in &[64usize, 512, 2048] {
+    for &n in &[512usize, 2048, 4096] {
         let a = make_mat_f32(n, n);
         let x = make_vec_f32(n);
         g.bench_with_input(BenchmarkId::from_parameter(n), &n, |b, _| {
@@ -267,7 +279,7 @@ fn bench_l2_ssymv(c: &mut Criterion) {
 
 fn bench_l2_dtrmv(c: &mut Criterion) {
     let mut g = c.benchmark_group("level2/dtrmv");
-    for &n in &[64usize, 512, 2048] {
+    for &n in &[512usize, 2048, 4096] {
         let a = make_tri_f64(n);
         g.bench_with_input(BenchmarkId::from_parameter(n), &n, |b, _| {
             let mut x = make_vec_f64(n);
@@ -279,7 +291,7 @@ fn bench_l2_dtrmv(c: &mut Criterion) {
 
 fn bench_l2_strmv(c: &mut Criterion) {
     let mut g = c.benchmark_group("level2/strmv");
-    for &n in &[64usize, 512, 2048] {
+    for &n in &[512usize, 2048, 4096] {
         let a = make_tri_f32(n);
         g.bench_with_input(BenchmarkId::from_parameter(n), &n, |b, _| {
             let mut x = make_vec_f32(n);
@@ -293,7 +305,7 @@ fn bench_l2_strmv(c: &mut Criterion) {
 
 fn bench_l2_dtrsv(c: &mut Criterion) {
     let mut g = c.benchmark_group("level2/dtrsv");
-    for &n in &[64usize, 512, 2048] {
+    for &n in &[512usize, 2048, 4096] {
         let a = make_tri_f64(n);
         g.bench_with_input(BenchmarkId::from_parameter(n), &n, |b, _| {
             let mut x = make_vec_f64(n);
@@ -305,7 +317,7 @@ fn bench_l2_dtrsv(c: &mut Criterion) {
 
 fn bench_l2_strsv(c: &mut Criterion) {
     let mut g = c.benchmark_group("level2/strsv");
-    for &n in &[64usize, 512, 2048] {
+    for &n in &[512usize, 2048, 4096] {
         let a = make_tri_f32(n);
         g.bench_with_input(BenchmarkId::from_parameter(n), &n, |b, _| {
             let mut x = make_vec_f32(n);
@@ -321,7 +333,9 @@ fn bench_l2_strsv(c: &mut Criterion) {
 
 fn bench_l3_dgemm(c: &mut Criterion) {
     let mut g = c.benchmark_group("level3/dgemm");
-    for &n in &[64usize, 128, 256] {
+    g.sample_size(20);
+    g.measurement_time(Duration::from_secs(30));
+    for &n in &[64usize, 256, 512] {
         let a = make_mat_f64(n, n);
         let b = make_mat_f64(n, n);
         g.bench_with_input(BenchmarkId::from_parameter(n), &n, |bench, _| {
@@ -336,7 +350,9 @@ fn bench_l3_dgemm(c: &mut Criterion) {
 
 fn bench_l3_sgemm(c: &mut Criterion) {
     let mut g = c.benchmark_group("level3/sgemm");
-    for &n in &[64usize, 128, 256] {
+    g.sample_size(20);
+    g.measurement_time(Duration::from_secs(30));
+    for &n in &[64usize, 256, 512] {
         let a = make_mat_f32(n, n);
         let b = make_mat_f32(n, n);
         g.bench_with_input(BenchmarkId::from_parameter(n), &n, |bench, _| {
@@ -353,7 +369,9 @@ fn bench_l3_sgemm(c: &mut Criterion) {
 
 fn bench_l3_dsyrk(c: &mut Criterion) {
     let mut g = c.benchmark_group("level3/dsyrk");
-    for &n in &[64usize, 128, 256] {
+    g.sample_size(20);
+    g.measurement_time(Duration::from_secs(30));
+    for &n in &[64usize, 256, 512] {
         let a = make_mat_f64(n, n);
         g.bench_with_input(BenchmarkId::from_parameter(n), &n, |bench, _| {
             let mut cc = make_mat_f64(n, n);
@@ -367,7 +385,9 @@ fn bench_l3_dsyrk(c: &mut Criterion) {
 
 fn bench_l3_ssyrk(c: &mut Criterion) {
     let mut g = c.benchmark_group("level3/ssyrk");
-    for &n in &[64usize, 128, 256] {
+    g.sample_size(20);
+    g.measurement_time(Duration::from_secs(30));
+    for &n in &[64usize, 256, 512] {
         let a = make_mat_f32(n, n);
         g.bench_with_input(BenchmarkId::from_parameter(n), &n, |bench, _| {
             let mut cc = make_mat_f32(n, n);
@@ -381,7 +401,9 @@ fn bench_l3_ssyrk(c: &mut Criterion) {
 
 fn bench_l3_dtrmm(c: &mut Criterion) {
     let mut g = c.benchmark_group("level3/dtrmm");
-    for &n in &[64usize, 128, 256] {
+    g.sample_size(20);
+    g.measurement_time(Duration::from_secs(30));
+    for &n in &[64usize, 256, 512] {
         let a = make_tri_f64(n);
         g.bench_with_input(BenchmarkId::from_parameter(n), &n, |bench, _| {
             let mut b = make_mat_f64(n, n);
@@ -407,7 +429,9 @@ fn bench_l3_dtrmm(c: &mut Criterion) {
 
 fn bench_l3_strmm(c: &mut Criterion) {
     let mut g = c.benchmark_group("level3/strmm");
-    for &n in &[64usize, 128, 256] {
+    g.sample_size(20);
+    g.measurement_time(Duration::from_secs(30));
+    for &n in &[64usize, 256, 512] {
         let a = make_tri_f32(n);
         g.bench_with_input(BenchmarkId::from_parameter(n), &n, |bench, _| {
             let mut b = make_mat_f32(n, n);
@@ -433,7 +457,9 @@ fn bench_l3_strmm(c: &mut Criterion) {
 
 fn bench_l3_dtrsm(c: &mut Criterion) {
     let mut g = c.benchmark_group("level3/dtrsm");
-    for &n in &[64usize, 128, 256] {
+    g.sample_size(20);
+    g.measurement_time(Duration::from_secs(30));
+    for &n in &[64usize, 256, 512] {
         let a = make_tri_f64(n);
         g.bench_with_input(BenchmarkId::from_parameter(n), &n, |bench, _| {
             let mut b = make_mat_f64(n, n);
@@ -459,7 +485,9 @@ fn bench_l3_dtrsm(c: &mut Criterion) {
 
 fn bench_l3_strsm(c: &mut Criterion) {
     let mut g = c.benchmark_group("level3/strsm");
-    for &n in &[64usize, 128, 256] {
+    g.sample_size(20);
+    g.measurement_time(Duration::from_secs(30));
+    for &n in &[64usize, 256, 512] {
         let a = make_tri_f32(n);
         g.bench_with_input(BenchmarkId::from_parameter(n), &n, |bench, _| {
             let mut b = make_mat_f32(n, n);
@@ -475,6 +503,67 @@ fn bench_l3_strsm(c: &mut Criterion) {
                     &a,
                     n,
                     &mut b,
+                    n,
+                )
+            })
+        });
+    }
+    g.finish();
+}
+
+
+fn bench_l3_dsymm(c: &mut Criterion) {
+    let mut g = c.benchmark_group("level3/dsymm");
+    g.sample_size(20);
+    g.measurement_time(Duration::from_secs(30));
+    for &n in &[64usize, 256, 512] {
+        let a = make_mat_f64(n, n);
+        let b = make_mat_f64(n, n);
+        g.bench_with_input(BenchmarkId::from_parameter(n), &n, |bench, _| {
+            let mut cc = make_mat_f64(n, n);
+            bench.iter(|| {
+                level3::symm(
+                    Side::Left,
+                    Uplo::Upper,
+                    n,
+                    n,
+                    1.0,
+                    &a,
+                    n,
+                    &b,
+                    n,
+                    0.0,
+                    &mut cc,
+                    n,
+                )
+            })
+        });
+    }
+    g.finish();
+}
+
+fn bench_l3_ssymm(c: &mut Criterion) {
+    let mut g = c.benchmark_group("level3/ssymm");
+    g.sample_size(20);
+    g.measurement_time(Duration::from_secs(30));
+    for &n in &[64usize, 256, 512] {
+        let a = make_mat_f32(n, n);
+        let b = make_mat_f32(n, n);
+        g.bench_with_input(BenchmarkId::from_parameter(n), &n, |bench, _| {
+            let mut cc = make_mat_f32(n, n);
+            bench.iter(|| {
+                level3::symm(
+                    Side::Left,
+                    Uplo::Upper,
+                    n,
+                    n,
+                    1.0f32,
+                    &a,
+                    n,
+                    &b,
+                    n,
+                    0.0f32,
+                    &mut cc,
                     n,
                 )
             })
@@ -505,8 +594,9 @@ criterion_group!(
         .measurement_time(Duration::from_secs(5))
         .warm_up_time(Duration::from_secs(1))
         .sample_size(50);
-    targets = bench_l3_dgemm, bench_l3_sgemm, bench_l3_dsyrk, bench_l3_ssyrk,
-              bench_l3_dtrmm, bench_l3_strmm, bench_l3_dtrsm, bench_l3_strsm
+    targets = bench_l3_dgemm, bench_l3_sgemm, bench_l3_dsymm, bench_l3_ssymm,
+              bench_l3_dsyrk, bench_l3_ssyrk, bench_l3_dtrmm, bench_l3_strmm,
+              bench_l3_dtrsm, bench_l3_strsm
 );
 
 criterion_main!(level1_benches, level2_benches, level3_benches);

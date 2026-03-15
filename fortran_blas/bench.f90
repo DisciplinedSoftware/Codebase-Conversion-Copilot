@@ -4,8 +4,12 @@ program blas_bench
   integer, parameter :: nwarm = 3
   integer, parameter :: niter = 13
   integer, parameter :: nsizes = 3
-  integer :: sizes(nsizes)
-  data sizes / 64, 512, 2048 /
+
+  ! Per-level sizes
+  integer :: l1_sizes(nsizes), l2_sizes(nsizes), l3_sizes(nsizes)
+  data l1_sizes / 1000000, 4000000, 16000000 /
+  data l2_sizes / 512, 2048, 4096 /
+  data l3_sizes / 64, 256, 512 /
 
   ! External BLAS function declarations
   double precision, external :: dasum, ddot, dnrm2
@@ -15,12 +19,10 @@ program blas_bench
   double precision :: t0, t1, dt, t_total, t_sq, mean_ns, std_ns
   real :: st0, st1, sdt, st_total, st_sq, smean_ns, sstd_ns
 
-  ! Working arrays (max size 2048*2048)
-  integer, parameter :: maxn = 2048
-  double precision :: DA(maxn*maxn), DB(maxn*maxn), DC(maxn*maxn)
-  double precision :: DX(maxn), DY(maxn)
-  real :: SA(maxn*maxn), SB(maxn*maxn), SC(maxn*maxn)
-  real :: SX(maxn), SY(maxn)
+  ! Allocatable working arrays
+  double precision, allocatable :: DA(:), DB(:), DC(:), DX(:), DY(:)
+  real, allocatable :: SA(:), SB(:), SC(:), SX(:), SY(:)
+
   double precision :: dalpha, dbeta
   real :: salpha, sbeta
   double precision :: dres
@@ -37,34 +39,23 @@ program blas_bench
 
   write(*,'(A)') '['
 
+  !===========================================================================
+  ! Level 1 benchmarks (vector operations, large n)
+  !===========================================================================
   do si = 1, nsizes
-    n = sizes(si)
+    n = l1_sizes(si)
+    allocate(DX(n), DY(n), SX(n), SY(n))
 
-    ! Initialize arrays
-    do j = 1, n
-      do i = 1, n
-        DA(i + (j-1)*n) = sin(dble(i)*dble(j)*0.1d0)
-        DB(i + (j-1)*n) = sin(dble(i+1)*dble(j)*0.1d0)
-        DC(i + (j-1)*n) = sin(dble(i)*dble(j+1)*0.1d0)
-        SA(i + (j-1)*n) = sin(real(i)*real(j)*0.1e0)
-        SB(i + (j-1)*n) = sin(real(i+1)*real(j)*0.1e0)
-        SC(i + (j-1)*n) = sin(real(i)*real(j+1)*0.1e0)
-      end do
-      DX(j) = dble(j) / dble(n)
-      DY(j) = dble(n+1-j) / dble(n)
-      SX(j) = real(j) / real(n)
-      SY(j) = real(n+1-j) / real(n)
-    end do
-
-    ! Fix diagonal for triangular routines: large diagonal
     do i = 1, n
-      DA(i + (i-1)*n) = dble(n) + dble(i)
-      SA(i + (i-1)*n) = real(n) + real(i)
+      DX(i) = dble(i) / dble(n)
+      DY(i) = dble(n+1-i) / dble(n)
+      SX(i) = real(i) / real(n)
+      SY(i) = real(n+1-i) / real(n)
     end do
 
-    !---------------------------------------------------------------------------
+    !-------------------------------------------------------------------------
     ! Level 1: dasum
-    !---------------------------------------------------------------------------
+    !-------------------------------------------------------------------------
     t_total = 0.0d0; t_sq = 0.0d0
     do iter = 1, niter
       call cpu_time(t0)
@@ -84,9 +75,9 @@ program blas_bench
       ', "mean_ns": ', mean_ns, ', "std_ns": ', std_ns, '}'
     first_entry = .false.
 
-    !---------------------------------------------------------------------------
+    !-------------------------------------------------------------------------
     ! Level 1: sasum
-    !---------------------------------------------------------------------------
+    !-------------------------------------------------------------------------
     st_total = 0.0e0; st_sq = 0.0e0
     do iter = 1, niter
       call cpu_time(st0)
@@ -105,9 +96,9 @@ program blas_bench
       '  {"routine": "sasum", "precision": "f32", "n": ', n, &
       ', "mean_ns": ', dble(smean_ns), ', "std_ns": ', dble(sstd_ns), '}'
 
-    !---------------------------------------------------------------------------
+    !-------------------------------------------------------------------------
     ! Level 1: daxpy
-    !---------------------------------------------------------------------------
+    !-------------------------------------------------------------------------
     t_total = 0.0d0; t_sq = 0.0d0
     do iter = 1, niter
       call cpu_time(t0)
@@ -126,9 +117,9 @@ program blas_bench
       '  {"routine": "daxpy", "precision": "f64", "n": ', n, &
       ', "mean_ns": ', mean_ns, ', "std_ns": ', std_ns, '}'
 
-    !---------------------------------------------------------------------------
+    !-------------------------------------------------------------------------
     ! Level 1: saxpy
-    !---------------------------------------------------------------------------
+    !-------------------------------------------------------------------------
     st_total = 0.0e0; st_sq = 0.0e0
     do iter = 1, niter
       call cpu_time(st0)
@@ -147,9 +138,9 @@ program blas_bench
       '  {"routine": "saxpy", "precision": "f32", "n": ', n, &
       ', "mean_ns": ', dble(smean_ns), ', "std_ns": ', dble(sstd_ns), '}'
 
-    !---------------------------------------------------------------------------
+    !-------------------------------------------------------------------------
     ! Level 1: ddot
-    !---------------------------------------------------------------------------
+    !-------------------------------------------------------------------------
     t_total = 0.0d0; t_sq = 0.0d0
     do iter = 1, niter
       call cpu_time(t0)
@@ -168,9 +159,9 @@ program blas_bench
       '  {"routine": "ddot", "precision": "f64", "n": ', n, &
       ', "mean_ns": ', mean_ns, ', "std_ns": ', std_ns, '}'
 
-    !---------------------------------------------------------------------------
+    !-------------------------------------------------------------------------
     ! Level 1: sdot
-    !---------------------------------------------------------------------------
+    !-------------------------------------------------------------------------
     st_total = 0.0e0; st_sq = 0.0e0
     do iter = 1, niter
       call cpu_time(st0)
@@ -189,9 +180,9 @@ program blas_bench
       '  {"routine": "sdot", "precision": "f32", "n": ', n, &
       ', "mean_ns": ', dble(smean_ns), ', "std_ns": ', dble(sstd_ns), '}'
 
-    !---------------------------------------------------------------------------
+    !-------------------------------------------------------------------------
     ! Level 1: dnrm2
-    !---------------------------------------------------------------------------
+    !-------------------------------------------------------------------------
     t_total = 0.0d0; t_sq = 0.0d0
     do iter = 1, niter
       call cpu_time(t0)
@@ -210,9 +201,9 @@ program blas_bench
       '  {"routine": "dnrm2", "precision": "f64", "n": ', n, &
       ', "mean_ns": ', mean_ns, ', "std_ns": ', std_ns, '}'
 
-    !---------------------------------------------------------------------------
+    !-------------------------------------------------------------------------
     ! Level 1: snrm2
-    !---------------------------------------------------------------------------
+    !-------------------------------------------------------------------------
     st_total = 0.0e0; st_sq = 0.0e0
     do iter = 1, niter
       call cpu_time(st0)
@@ -231,9 +222,9 @@ program blas_bench
       '  {"routine": "snrm2", "precision": "f32", "n": ', n, &
       ', "mean_ns": ', dble(smean_ns), ', "std_ns": ', dble(sstd_ns), '}'
 
-    !---------------------------------------------------------------------------
+    !-------------------------------------------------------------------------
     ! Level 1: dscal
-    !---------------------------------------------------------------------------
+    !-------------------------------------------------------------------------
     t_total = 0.0d0; t_sq = 0.0d0
     do iter = 1, niter
       call cpu_time(t0)
@@ -252,9 +243,9 @@ program blas_bench
       '  {"routine": "dscal", "precision": "f64", "n": ', n, &
       ', "mean_ns": ', mean_ns, ', "std_ns": ', std_ns, '}'
 
-    !---------------------------------------------------------------------------
+    !-------------------------------------------------------------------------
     ! Level 1: sscal
-    !---------------------------------------------------------------------------
+    !-------------------------------------------------------------------------
     st_total = 0.0e0; st_sq = 0.0e0
     do iter = 1, niter
       call cpu_time(st0)
@@ -273,9 +264,9 @@ program blas_bench
       '  {"routine": "sscal", "precision": "f32", "n": ', n, &
       ', "mean_ns": ', dble(smean_ns), ', "std_ns": ', dble(sstd_ns), '}'
 
-    !---------------------------------------------------------------------------
+    !-------------------------------------------------------------------------
     ! Level 1: dswap
-    !---------------------------------------------------------------------------
+    !-------------------------------------------------------------------------
     t_total = 0.0d0; t_sq = 0.0d0
     do iter = 1, niter
       call cpu_time(t0)
@@ -294,9 +285,9 @@ program blas_bench
       '  {"routine": "dswap", "precision": "f64", "n": ', n, &
       ', "mean_ns": ', mean_ns, ', "std_ns": ', std_ns, '}'
 
-    !---------------------------------------------------------------------------
+    !-------------------------------------------------------------------------
     ! Level 1: sswap
-    !---------------------------------------------------------------------------
+    !-------------------------------------------------------------------------
     st_total = 0.0e0; st_sq = 0.0e0
     do iter = 1, niter
       call cpu_time(st0)
@@ -315,9 +306,36 @@ program blas_bench
       '  {"routine": "sswap", "precision": "f32", "n": ', n, &
       ', "mean_ns": ', dble(smean_ns), ', "std_ns": ', dble(sstd_ns), '}'
 
-    !---------------------------------------------------------------------------
+    deallocate(DX, DY, SX, SY)
+  end do ! l1_sizes
+
+  !===========================================================================
+  ! Level 2 benchmarks (matrix-vector operations)
+  !===========================================================================
+  do si = 1, nsizes
+    n = l2_sizes(si)
+    allocate(DA(n*n), DX(n), DY(n), SA(n*n), SX(n), SY(n))
+
+    do j = 1, n
+      do i = 1, n
+        DA(i + (j-1)*n) = sin(dble(i)*dble(j)*0.1d0)
+        SA(i + (j-1)*n) = sin(real(i)*real(j)*0.1e0)
+      end do
+      DX(j) = dble(j) / dble(n)
+      DY(j) = dble(n+1-j) / dble(n)
+      SX(j) = real(j) / real(n)
+      SY(j) = real(n+1-j) / real(n)
+    end do
+
+    ! Fix diagonal for triangular routines
+    do i = 1, n
+      DA(i + (i-1)*n) = dble(n) + dble(i) + 1.0d0
+      SA(i + (i-1)*n) = real(n) + real(i) + 1.0e0
+    end do
+
+    !-------------------------------------------------------------------------
     ! Level 2: dgemv
-    !---------------------------------------------------------------------------
+    !-------------------------------------------------------------------------
     t_total = 0.0d0; t_sq = 0.0d0
     do iter = 1, niter
       call cpu_time(t0)
@@ -336,9 +354,9 @@ program blas_bench
       '  {"routine": "dgemv", "precision": "f64", "n": ', n, &
       ', "mean_ns": ', mean_ns, ', "std_ns": ', std_ns, '}'
 
-    !---------------------------------------------------------------------------
+    !-------------------------------------------------------------------------
     ! Level 2: sgemv
-    !---------------------------------------------------------------------------
+    !-------------------------------------------------------------------------
     st_total = 0.0e0; st_sq = 0.0e0
     do iter = 1, niter
       call cpu_time(st0)
@@ -357,9 +375,9 @@ program blas_bench
       '  {"routine": "sgemv", "precision": "f32", "n": ', n, &
       ', "mean_ns": ', dble(smean_ns), ', "std_ns": ', dble(sstd_ns), '}'
 
-    !---------------------------------------------------------------------------
+    !-------------------------------------------------------------------------
     ! Level 2: dger
-    !---------------------------------------------------------------------------
+    !-------------------------------------------------------------------------
     t_total = 0.0d0; t_sq = 0.0d0
     do iter = 1, niter
       call cpu_time(t0)
@@ -378,9 +396,9 @@ program blas_bench
       '  {"routine": "dger", "precision": "f64", "n": ', n, &
       ', "mean_ns": ', mean_ns, ', "std_ns": ', std_ns, '}'
 
-    !---------------------------------------------------------------------------
+    !-------------------------------------------------------------------------
     ! Level 2: sger
-    !---------------------------------------------------------------------------
+    !-------------------------------------------------------------------------
     st_total = 0.0e0; st_sq = 0.0e0
     do iter = 1, niter
       call cpu_time(st0)
@@ -399,9 +417,9 @@ program blas_bench
       '  {"routine": "sger", "precision": "f32", "n": ', n, &
       ', "mean_ns": ', dble(smean_ns), ', "std_ns": ', dble(sstd_ns), '}'
 
-    !---------------------------------------------------------------------------
+    !-------------------------------------------------------------------------
     ! Level 2: dsymv
-    !---------------------------------------------------------------------------
+    !-------------------------------------------------------------------------
     t_total = 0.0d0; t_sq = 0.0d0
     do iter = 1, niter
       call cpu_time(t0)
@@ -420,9 +438,9 @@ program blas_bench
       '  {"routine": "dsymv", "precision": "f64", "n": ', n, &
       ', "mean_ns": ', mean_ns, ', "std_ns": ', std_ns, '}'
 
-    !---------------------------------------------------------------------------
+    !-------------------------------------------------------------------------
     ! Level 2: ssymv
-    !---------------------------------------------------------------------------
+    !-------------------------------------------------------------------------
     st_total = 0.0e0; st_sq = 0.0e0
     do iter = 1, niter
       call cpu_time(st0)
@@ -441,9 +459,9 @@ program blas_bench
       '  {"routine": "ssymv", "precision": "f32", "n": ', n, &
       ', "mean_ns": ', dble(smean_ns), ', "std_ns": ', dble(sstd_ns), '}'
 
-    !---------------------------------------------------------------------------
+    !-------------------------------------------------------------------------
     ! Level 2: dtrmv
-    !---------------------------------------------------------------------------
+    !-------------------------------------------------------------------------
     t_total = 0.0d0; t_sq = 0.0d0
     do iter = 1, niter
       call cpu_time(t0)
@@ -462,9 +480,9 @@ program blas_bench
       '  {"routine": "dtrmv", "precision": "f64", "n": ', n, &
       ', "mean_ns": ', mean_ns, ', "std_ns": ', std_ns, '}'
 
-    !---------------------------------------------------------------------------
+    !-------------------------------------------------------------------------
     ! Level 2: strmv
-    !---------------------------------------------------------------------------
+    !-------------------------------------------------------------------------
     st_total = 0.0e0; st_sq = 0.0e0
     do iter = 1, niter
       call cpu_time(st0)
@@ -483,9 +501,83 @@ program blas_bench
       '  {"routine": "strmv", "precision": "f32", "n": ', n, &
       ', "mean_ns": ', dble(smean_ns), ', "std_ns": ', dble(sstd_ns), '}'
 
-    !---------------------------------------------------------------------------
+    !-------------------------------------------------------------------------
+    ! Level 2: dtrsv
+    !-------------------------------------------------------------------------
+    t_total = 0.0d0; t_sq = 0.0d0
+    do iter = 1, niter
+      call cpu_time(t0)
+      call dtrsv('U', 'N', 'N', n, DA, n, DX, 1)
+      call cpu_time(t1)
+      dt = (t1 - t0) * 1.0d9
+      if (iter > nwarm) then
+        t_total = t_total + dt
+        t_sq    = t_sq + dt*dt
+      end if
+    end do
+    mean_ns = t_total / dble(niter - nwarm)
+    std_ns  = sqrt(max(0.0d0, t_sq/dble(niter-nwarm) - mean_ns*mean_ns))
+    write(*,'(A)') ','
+    write(*,'(A,I0,A,F20.3,A,F20.3,A)') &
+      '  {"routine": "dtrsv", "precision": "f64", "n": ', n, &
+      ', "mean_ns": ', mean_ns, ', "std_ns": ', std_ns, '}'
+
+    !-------------------------------------------------------------------------
+    ! Level 2: strsv
+    !-------------------------------------------------------------------------
+    st_total = 0.0e0; st_sq = 0.0e0
+    do iter = 1, niter
+      call cpu_time(st0)
+      call strsv('U', 'N', 'N', n, SA, n, SX, 1)
+      call cpu_time(st1)
+      sdt = (st1 - st0) * 1.0e9
+      if (iter > nwarm) then
+        st_total = st_total + sdt
+        st_sq    = st_sq + sdt*sdt
+      end if
+    end do
+    smean_ns = st_total / real(niter - nwarm)
+    sstd_ns  = sqrt(max(0.0e0, st_sq/real(niter-nwarm) - smean_ns*smean_ns))
+    write(*,'(A)') ','
+    write(*,'(A,I0,A,F20.3,A,F20.3,A)') &
+      '  {"routine": "strsv", "precision": "f32", "n": ', n, &
+      ', "mean_ns": ', dble(smean_ns), ', "std_ns": ', dble(sstd_ns), '}'
+
+    deallocate(DA, DX, DY, SA, SX, SY)
+  end do ! l2_sizes
+
+  !===========================================================================
+  ! Level 3 benchmarks (matrix-matrix operations)
+  !===========================================================================
+  do si = 1, nsizes
+    n = l3_sizes(si)
+    allocate(DA(n*n), DB(n*n), DC(n*n), DX(n), DY(n))
+    allocate(SA(n*n), SB(n*n), SC(n*n), SX(n), SY(n))
+
+    do j = 1, n
+      do i = 1, n
+        DA(i + (j-1)*n) = sin(dble(i)*dble(j)*0.1d0)
+        DB(i + (j-1)*n) = sin(dble(i+1)*dble(j)*0.1d0)
+        DC(i + (j-1)*n) = sin(dble(i)*dble(j+1)*0.1d0)
+        SA(i + (j-1)*n) = sin(real(i)*real(j)*0.1e0)
+        SB(i + (j-1)*n) = sin(real(i+1)*real(j)*0.1e0)
+        SC(i + (j-1)*n) = sin(real(i)*real(j+1)*0.1e0)
+      end do
+      DX(j) = dble(j) / dble(n)
+      DY(j) = dble(n+1-j) / dble(n)
+      SX(j) = real(j) / real(n)
+      SY(j) = real(n+1-j) / real(n)
+    end do
+
+    ! Fix diagonal for triangular routines
+    do i = 1, n
+      DA(i + (i-1)*n) = dble(n) + dble(i) + 1.0d0
+      SA(i + (i-1)*n) = real(n) + real(i) + 1.0e0
+    end do
+
+    !-------------------------------------------------------------------------
     ! Level 3: dgemm
-    !---------------------------------------------------------------------------
+    !-------------------------------------------------------------------------
     t_total = 0.0d0; t_sq = 0.0d0
     do iter = 1, niter
       call cpu_time(t0)
@@ -504,9 +596,9 @@ program blas_bench
       '  {"routine": "dgemm", "precision": "f64", "n": ', n, &
       ', "mean_ns": ', mean_ns, ', "std_ns": ', std_ns, '}'
 
-    !---------------------------------------------------------------------------
+    !-------------------------------------------------------------------------
     ! Level 3: sgemm
-    !---------------------------------------------------------------------------
+    !-------------------------------------------------------------------------
     st_total = 0.0e0; st_sq = 0.0e0
     do iter = 1, niter
       call cpu_time(st0)
@@ -525,9 +617,51 @@ program blas_bench
       '  {"routine": "sgemm", "precision": "f32", "n": ', n, &
       ', "mean_ns": ', dble(smean_ns), ', "std_ns": ', dble(sstd_ns), '}'
 
-    !---------------------------------------------------------------------------
+    !-------------------------------------------------------------------------
+    ! Level 3: dsymm
+    !-------------------------------------------------------------------------
+    t_total = 0.0d0; t_sq = 0.0d0
+    do iter = 1, niter
+      call cpu_time(t0)
+      call dsymm('L', 'U', n, n, dalpha, DA, n, DB, n, dbeta, DC, n)
+      call cpu_time(t1)
+      dt = (t1 - t0) * 1.0d9
+      if (iter > nwarm) then
+        t_total = t_total + dt
+        t_sq    = t_sq + dt*dt
+      end if
+    end do
+    mean_ns = t_total / dble(niter - nwarm)
+    std_ns  = sqrt(max(0.0d0, t_sq/dble(niter-nwarm) - mean_ns*mean_ns))
+    write(*,'(A)') ','
+    write(*,'(A,I0,A,F20.3,A,F20.3,A)') &
+      '  {"routine": "dsymm", "precision": "f64", "n": ', n, &
+      ', "mean_ns": ', mean_ns, ', "std_ns": ', std_ns, '}'
+
+    !-------------------------------------------------------------------------
+    ! Level 3: ssymm
+    !-------------------------------------------------------------------------
+    st_total = 0.0e0; st_sq = 0.0e0
+    do iter = 1, niter
+      call cpu_time(st0)
+      call ssymm('L', 'U', n, n, salpha, SA, n, SB, n, sbeta, SC, n)
+      call cpu_time(st1)
+      sdt = (st1 - st0) * 1.0e9
+      if (iter > nwarm) then
+        st_total = st_total + sdt
+        st_sq    = st_sq + sdt*sdt
+      end if
+    end do
+    smean_ns = st_total / real(niter - nwarm)
+    sstd_ns  = sqrt(max(0.0e0, st_sq/real(niter-nwarm) - smean_ns*smean_ns))
+    write(*,'(A)') ','
+    write(*,'(A,I0,A,F20.3,A,F20.3,A)') &
+      '  {"routine": "ssymm", "precision": "f32", "n": ', n, &
+      ', "mean_ns": ', dble(smean_ns), ', "std_ns": ', dble(sstd_ns), '}'
+
+    !-------------------------------------------------------------------------
     ! Level 3: dsyrk
-    !---------------------------------------------------------------------------
+    !-------------------------------------------------------------------------
     t_total = 0.0d0; t_sq = 0.0d0
     do iter = 1, niter
       call cpu_time(t0)
@@ -546,9 +680,9 @@ program blas_bench
       '  {"routine": "dsyrk", "precision": "f64", "n": ', n, &
       ', "mean_ns": ', mean_ns, ', "std_ns": ', std_ns, '}'
 
-    !---------------------------------------------------------------------------
+    !-------------------------------------------------------------------------
     ! Level 3: ssyrk
-    !---------------------------------------------------------------------------
+    !-------------------------------------------------------------------------
     st_total = 0.0e0; st_sq = 0.0e0
     do iter = 1, niter
       call cpu_time(st0)
@@ -567,9 +701,9 @@ program blas_bench
       '  {"routine": "ssyrk", "precision": "f32", "n": ', n, &
       ', "mean_ns": ', dble(smean_ns), ', "std_ns": ', dble(sstd_ns), '}'
 
-    !---------------------------------------------------------------------------
+    !-------------------------------------------------------------------------
     ! Level 3: dtrmm
-    !---------------------------------------------------------------------------
+    !-------------------------------------------------------------------------
     t_total = 0.0d0; t_sq = 0.0d0
     do iter = 1, niter
       call cpu_time(t0)
@@ -588,9 +722,9 @@ program blas_bench
       '  {"routine": "dtrmm", "precision": "f64", "n": ', n, &
       ', "mean_ns": ', mean_ns, ', "std_ns": ', std_ns, '}'
 
-    !---------------------------------------------------------------------------
+    !-------------------------------------------------------------------------
     ! Level 3: strmm
-    !---------------------------------------------------------------------------
+    !-------------------------------------------------------------------------
     st_total = 0.0e0; st_sq = 0.0e0
     do iter = 1, niter
       call cpu_time(st0)
@@ -609,17 +743,51 @@ program blas_bench
       '  {"routine": "strmm", "precision": "f32", "n": ', n, &
       ', "mean_ns": ', dble(smean_ns), ', "std_ns": ', dble(sstd_ns), '}'
 
-  end do ! sizes
+    !-------------------------------------------------------------------------
+    ! Level 3: dtrsm
+    !-------------------------------------------------------------------------
+    t_total = 0.0d0; t_sq = 0.0d0
+    do iter = 1, niter
+      call cpu_time(t0)
+      call dtrsm('L', 'U', 'N', 'N', n, n, dalpha, DA, n, DB, n)
+      call cpu_time(t1)
+      dt = (t1 - t0) * 1.0d9
+      if (iter > nwarm) then
+        t_total = t_total + dt
+        t_sq    = t_sq + dt*dt
+      end if
+    end do
+    mean_ns = t_total / dble(niter - nwarm)
+    std_ns  = sqrt(max(0.0d0, t_sq/dble(niter-nwarm) - mean_ns*mean_ns))
+    write(*,'(A)') ','
+    write(*,'(A,I0,A,F20.3,A,F20.3,A)') &
+      '  {"routine": "dtrsm", "precision": "f64", "n": ', n, &
+      ', "mean_ns": ', mean_ns, ', "std_ns": ', std_ns, '}'
+
+    !-------------------------------------------------------------------------
+    ! Level 3: strsm
+    !-------------------------------------------------------------------------
+    st_total = 0.0e0; st_sq = 0.0e0
+    do iter = 1, niter
+      call cpu_time(st0)
+      call strsm('L', 'U', 'N', 'N', n, n, salpha, SA, n, SB, n)
+      call cpu_time(st1)
+      sdt = (st1 - st0) * 1.0e9
+      if (iter > nwarm) then
+        st_total = st_total + sdt
+        st_sq    = st_sq + sdt*sdt
+      end if
+    end do
+    smean_ns = st_total / real(niter - nwarm)
+    sstd_ns  = sqrt(max(0.0e0, st_sq/real(niter-nwarm) - smean_ns*smean_ns))
+    write(*,'(A)') ','
+    write(*,'(A,I0,A,F20.3,A,F20.3,A)') &
+      '  {"routine": "strsm", "precision": "f32", "n": ', n, &
+      ', "mean_ns": ', dble(smean_ns), ', "std_ns": ', dble(sstd_ns), '}'
+
+    deallocate(DA, DB, DC, DX, DY, SA, SB, SC, SX, SY)
+  end do ! l3_sizes
 
   write(*,'(A)') ']'
-
-contains
-
-  function itoa(val) result(str)
-    integer, intent(in) :: val
-    character(len=20) :: str
-    write(str, '(I0)') val
-    str = trim(adjustl(str))
-  end function itoa
 
 end program blas_bench

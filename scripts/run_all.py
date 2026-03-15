@@ -58,6 +58,16 @@ def run_fortran_bench():
 
     df = pd.DataFrame(rows)
     df["source"] = "fortran"
+    # Normalize: strip d/s precision prefix so routine names match Rust bench keys
+    # e.g. 'dasum' → 'asum', 'sasum' → 'asum' (precision column already set)
+    def _strip_prec_prefix(row):
+        r = row["routine"]
+        if row["precision"] == "f64" and r.startswith("d"):
+            return r[1:]
+        if row["precision"] == "f32" and r.startswith("s"):
+            return r[1:]
+        return r
+    df["routine"] = df.apply(_strip_prec_prefix, axis=1)
     print(f"  Fortran: {len(df)} benchmark rows")
     return df
 
@@ -200,11 +210,22 @@ def build_chart_data(bench_df):
     return chart_data
 
 
-def build_speedup_rows(bench_df):
-    """Build speedup table rows (Fortran time / Rust time; >1 means Rust is faster)."""
+def build_accuracy_lookup(accuracy_rows):
+    """Build dict keyed by (routine, precision, n) → accuracy entry."""
+    lookup = {}
+    for r in accuracy_rows:
+        key = (r["routine"], r["precision"], int(r["n"]))
+        lookup[key] = r
+    return lookup
+
+
+def build_speedup_rows(bench_df, accuracy_lookup=None):
+    """Build speedup table rows for f64, enriched with accuracy data where available."""
     rows = []
     if bench_df.empty:
         return rows
+    if accuracy_lookup is None:
+        accuracy_lookup = {}
     df64 = bench_df[bench_df["precision"] == "f64"].copy()
     routines = sorted(df64["routine"].unique())
     sizes = sorted(df64["n"].unique())
@@ -216,23 +237,67 @@ def build_speedup_rows(bench_df):
                 continue
             f_ns = float(f_row["mean_ns"].values[0])
             r_ns = float(r_row["mean_ns"].values[0])
-            # speedup > 1 → Rust slower; speedup < 1 → Rust faster
             speedup = r_ns / f_ns if f_ns > 0 else float("inf")
+            # Accuracy for f64 at this (routine, n)
+            acc = accuracy_lookup.get((routine, "f64", int(n)))
             rows.append({
                 "routine": routine,
                 "n": n,
                 "fortran_ns": round(f_ns, 1),
                 "rust_ns": round(r_ns, 1),
                 "speedup": round(speedup, 3),
+                # accuracy fields (None when not available)
+                "max_rel_error": acc["max_rel_error"] if acc else None,
+                "threshold": acc["threshold"] if acc else None,
+                "acc_passed": acc["passed"] if acc else None,
+            })
+    return rows
+
+
+def build_speedup_rows_f32(bench_df, accuracy_lookup=None):
+    """Same as build_speedup_rows but for f32 precision."""
+    rows = []
+    if bench_df.empty:
+        return rows
+    if accuracy_lookup is None:
+        accuracy_lookup = {}
+    df32 = bench_df[bench_df["precision"] == "f32"].copy()
+    routines = sorted(df32["routine"].unique())
+    sizes = sorted(df32["n"].unique())
+    for routine in routines:
+        for n in sizes:
+            f_row = df32[(df32["routine"] == routine) & (df32["source"] == "fortran") & (df32["n"] == n)]
+            r_row = df32[(df32["routine"] == routine) & (df32["source"] == "rust") & (df32["n"] == n)]
+            if f_row.empty or r_row.empty:
+                continue
+            f_ns = float(f_row["mean_ns"].values[0])
+            r_ns = float(r_row["mean_ns"].values[0])
+            speedup = r_ns / f_ns if f_ns > 0 else float("inf")
+            acc = accuracy_lookup.get((routine, "f32", int(n)))
+            rows.append({
+                "routine": routine,
+                "n": n,
+                "fortran_ns": round(f_ns, 1),
+                "rust_ns": round(r_ns, 1),
+                "speedup": round(speedup, 3),
+                "max_rel_error": acc["max_rel_error"] if acc else None,
+                "threshold": acc["threshold"] if acc else None,
+                "acc_passed": acc["passed"] if acc else None,
             })
     return rows
 
 
 def generate_report(accuracy_rows, bench_df):
     print("\n[4/4] Generating HTML report...")
+    accuracy_lookup = build_accuracy_lookup(accuracy_rows)
     chart_data = build_chart_data(bench_df)
-    speedup_rows = build_speedup_rows(bench_df)
+    speedup_rows = build_speedup_rows(bench_df, accuracy_lookup)
+    speedup_rows_f32 = build_speedup_rows_f32(bench_df, accuracy_lookup)
     bench_rows = bench_df.to_dict("records") if not bench_df.empty else []
+
+    # Summary counts
+    n_acc_total = len(accuracy_rows)
+    n_acc_pass = sum(1 for r in accuracy_rows if r.get("passed"))
 
     env = Environment(loader=FileSystemLoader(SCRIPT_DIR))
     template = env.get_template("report_template.html")
@@ -242,6 +307,9 @@ def generate_report(accuracy_rows, bench_df):
         bench_rows=bench_rows,
         chart_data=chart_data,
         speedup_rows=speedup_rows,
+        speedup_rows_f32=speedup_rows_f32,
+        n_acc_total=n_acc_total,
+        n_acc_pass=n_acc_pass,
     )
 
     with open(REPORT_OUT, "w") as f:
@@ -256,6 +324,8 @@ def main():
     parser.add_argument("--skip-fortran", action="store_true", help="Skip Fortran bench (use empty df)")
     parser.add_argument("--skip-rust-bench", action="store_true",
                         help="Skip running cargo bench; use cached criterion data on disk")
+    parser.add_argument("--skip-accuracy", action="store_true",
+                        help="Skip running accuracy tests; use cached /tmp/accuracy_results.json")
     args = parser.parse_args()
 
     print("=" * 60)
@@ -268,7 +338,13 @@ def main():
     else:
         fortran_df = run_fortran_bench()
 
-    accuracy_rows = run_rust_accuracy()
+    if args.skip_accuracy:
+        print("\n[2/4] Loading cached accuracy results from /tmp/accuracy_results.json...")
+        with open("/tmp/accuracy_results.json") as f:
+            accuracy_rows = json.load(f)
+        print(f"  Accuracy: {len(accuracy_rows)} routines tested (cached)")
+    else:
+        accuracy_rows = run_rust_accuracy()
 
     if args.skip_rust_bench:
         print("\n[3/4] Loading cached Rust benchmark data...")
