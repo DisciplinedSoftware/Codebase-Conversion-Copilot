@@ -1,0 +1,3786 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bentley Systems — BLAS Performance &amp; Accuracy Report</title>
+  
+  <style>
+    :root {
+      --navy: #002E5D;
+      --blue: #0071CE;
+      --orange: #F58220;
+      --sky: #00AEEF;
+      --light: #F0F4F8;
+      --white: #FFFFFF;
+      --grey: #6B7280;
+      --pass: #16A34A;
+      --fail: #DC2626;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: var(--light);
+      color: #1F2937;
+      line-height: 1.6;
+    }
+
+    header {
+      background: var(--navy);
+      color: var(--white);
+      padding: 1.5rem 2rem;
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    header .logo-box {
+      width: 48px;
+      height: 48px;
+      background: var(--orange);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      font-weight: 900;
+      color: var(--white);
+    }
+
+    header h1 {
+      font-size: 1.4rem;
+      font-weight: 700;
+    }
+
+    header p {
+      font-size: 0.85rem;
+      color: var(--sky);
+      margin-top: 0.2rem;
+    }
+
+    main {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem;
+    }
+
+    h2 {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--navy);
+      margin: 2rem 0 1rem;
+      padding-bottom: 0.4rem;
+      border-bottom: 3px solid var(--blue);
+    }
+
+    h3 {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--navy);
+      margin: 1.5rem 0 0.5rem;
+    }
+
+    /* ── Tables ────────────────────────────────────────────────── */
+    .table-wrap {
+      overflow-x: auto;
+      border-radius: 8px;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--white);
+      font-size: 0.88rem;
+    }
+
+    th {
+      background: var(--navy);
+      color: var(--white);
+      padding: 0.6rem 1rem;
+      text-align: left;
+      white-space: nowrap;
+    }
+
+    td {
+      padding: 0.5rem 1rem;
+      border-bottom: 1px solid #E5E7EB;
+      white-space: nowrap;
+    }
+
+    tr:hover td {
+      background: #F8FAFC;
+    }
+
+    .pass {
+      color: var(--pass);
+      font-weight: 700;
+    }
+
+    .fail {
+      color: var(--fail);
+      font-weight: 700;
+    }
+
+    .speedup-good {
+      color: var(--pass);
+    }
+
+    .speedup-bad {
+      color: var(--fail);
+    }
+
+    .speedup-ok {
+      color: var(--orange);
+    }
+
+    /* ── Charts ────────────────────────────────────────────────── */
+    .chart-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+      gap: 1.5rem;
+      margin-top: 1rem;
+    }
+
+    .chart-card {
+      background: var(--white);
+      border-radius: 10px;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+      padding: 1rem 1.2rem 0.8rem;
+    }
+
+    .chart-card h4 {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: var(--navy);
+      margin-bottom: 0.5rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+
+
+    /* ── Summary badges ──────────────────────────────────────────── */
+    .summary-bar {
+      display: flex;
+      gap: 1.5rem;
+      flex-wrap: wrap;
+      margin-bottom: 1.5rem;
+    }
+
+    .badge {
+      background: var(--white);
+      border-radius: 8px;
+      padding: 0.8rem 1.4rem;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+      text-align: center;
+      min-width: 120px;
+    }
+
+    .badge .val {
+      font-size: 1.8rem;
+      font-weight: 800;
+      line-height: 1;
+    }
+
+    .badge .lbl {
+      font-size: 0.75rem;
+      color: var(--grey);
+      margin-top: 0.2rem;
+    }
+
+    .badge.pass-badge .val {
+      color: var(--pass);
+    }
+
+    .badge.fail-badge .val {
+      color: var(--fail);
+    }
+
+    .badge.blue-badge .val {
+      color: var(--blue);
+    }
+
+    footer {
+      text-align: center;
+      padding: 2rem;
+      font-size: 0.8rem;
+      color: var(--grey);
+      border-top: 1px solid #E5E7EB;
+      margin-top: 3rem;
+    }
+  </style>
+</head>
+
+<body>
+
+  <header>
+    <div class="logo-box">B</div>
+    <div>
+      <h1>Bentley Systems — BLAS Performance &amp; Accuracy Report</h1>
+      <p>Fortran BLAS 3.12.0 → Rust port &nbsp;|&nbsp; Levels 1, 2, 3 &nbsp;|&nbsp; f32 &amp; f64</p>
+    </div>
+  </header>
+
+  <main>
+
+    
+
+    <div class="summary-bar">
+      <div class="badge blue-badge">
+        <div class="val">96</div>
+        <div class="lbl">Accuracy Tests</div>
+      </div>
+      <div class="badge pass-badge">
+        <div class="val">96</div>
+        <div class="lbl">Passed</div>
+      </div>
+      
+      <div class="badge blue-badge">
+        <div class="val">96</div>
+        <div class="lbl">Fortran Bench Points</div>
+      </div>
+      <div class="badge blue-badge">
+        <div class="val">86</div>
+        <div class="lbl">Rust Bench Points</div>
+      </div>
+    </div>
+
+    <!-- ── Section 1: Accuracy ──────────────────────────────────── -->
+    <h2>§1 — Accuracy (Rust vs. reference Fortran BLAS, all sizes)</h2>
+    <p style="color:var(--grey);font-size:.85rem;margin-bottom:.8rem">
+      f64 threshold: ≤ 1e-10 &nbsp;|&nbsp; f32 threshold: ≤ 5e-4 &nbsp;|&nbsp;
+      Tested at n = 64, 512, 2048 for every routine.
+    </p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Routine</th>
+            <th>Precision</th>
+            <th>N</th>
+            <th>Max Relative Error</th>
+            <th>Threshold</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          
+          <tr>
+            <td><strong>asum</strong></td>
+            <td>f64</td>
+            <td>64</td>
+            <td style="font-family:monospace">0.000e+00</td>
+            <td style="font-family:monospace;color:var(--grey)">1e-10</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>axpy</strong></td>
+            <td>f64</td>
+            <td>64</td>
+            <td style="font-family:monospace">0.000e+00</td>
+            <td style="font-family:monospace;color:var(--grey)">1e-10</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>dot</strong></td>
+            <td>f64</td>
+            <td>64</td>
+            <td style="font-family:monospace">0.000e+00</td>
+            <td style="font-family:monospace;color:var(--grey)">1e-10</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>nrm2</strong></td>
+            <td>f64</td>
+            <td>64</td>
+            <td style="font-family:monospace">1.901e-16</td>
+            <td style="font-family:monospace;color:var(--grey)">1e-10</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>scal</strong></td>
+            <td>f64</td>
+            <td>64</td>
+            <td style="font-family:monospace">0.000e+00</td>
+            <td style="font-family:monospace;color:var(--grey)">1e-10</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>swap</strong></td>
+            <td>f64</td>
+            <td>64</td>
+            <td style="font-family:monospace">0.000e+00</td>
+            <td style="font-family:monospace;color:var(--grey)">1e-10</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>gemv</strong></td>
+            <td>f64</td>
+            <td>64</td>
+            <td style="font-family:monospace">0.000e+00</td>
+            <td style="font-family:monospace;color:var(--grey)">1e-10</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>ger</strong></td>
+            <td>f64</td>
+            <td>64</td>
+            <td style="font-family:monospace">0.000e+00</td>
+            <td style="font-family:monospace;color:var(--grey)">1e-10</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>symv</strong></td>
+            <td>f64</td>
+            <td>64</td>
+            <td style="font-family:monospace">2.270e-14</td>
+            <td style="font-family:monospace;color:var(--grey)">1e-10</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>trmv</strong></td>
+            <td>f64</td>
+            <td>64</td>
+            <td style="font-family:monospace">0.000e+00</td>
+            <td style="font-family:monospace;color:var(--grey)">1e-10</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>trsv</strong></td>
+            <td>f64</td>
+            <td>64</td>
+            <td style="font-family:monospace">8.246e-16</td>
+            <td style="font-family:monospace;color:var(--grey)">1e-10</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>gemm</strong></td>
+            <td>f64</td>
+            <td>64</td>
+            <td style="font-family:monospace">0.000e+00</td>
+            <td style="font-family:monospace;color:var(--grey)">1e-10</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>symm</strong></td>
+            <td>f64</td>
+            <td>64</td>
+            <td style="font-family:monospace">0.000e+00</td>
+            <td style="font-family:monospace;color:var(--grey)">1e-10</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>syrk</strong></td>
+            <td>f64</td>
+            <td>64</td>
+            <td style="font-family:monospace">0.000e+00</td>
+            <td style="font-family:monospace;color:var(--grey)">1e-10</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>trmm</strong></td>
+            <td>f64</td>
+            <td>64</td>
+            <td style="font-family:monospace">0.000e+00</td>
+            <td style="font-family:monospace;color:var(--grey)">1e-10</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>trsm</strong></td>
+            <td>f64</td>
+            <td>64</td>
+            <td style="font-family:monospace">0.000e+00</td>
+            <td style="font-family:monospace;color:var(--grey)">1e-10</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>asum</strong></td>
+            <td>f32</td>
+            <td>64</td>
+            <td style="font-family:monospace">0.000e+00</td>
+            <td style="font-family:monospace;color:var(--grey)">5e-04</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>axpy</strong></td>
+            <td>f32</td>
+            <td>64</td>
+            <td style="font-family:monospace">0.000e+00</td>
+            <td style="font-family:monospace;color:var(--grey)">5e-04</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>dot</strong></td>
+            <td>f32</td>
+            <td>64</td>
+            <td style="font-family:monospace">0.000e+00</td>
+            <td style="font-family:monospace;color:var(--grey)">5e-04</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>nrm2</strong></td>
+            <td>f32</td>
+            <td>64</td>
+            <td style="font-family:monospace">1.020e-07</td>
+            <td style="font-family:monospace;color:var(--grey)">5e-04</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>scal</strong></td>
+            <td>f32</td>
+            <td>64</td>
+            <td style="font-family:monospace">0.000e+00</td>
+            <td style="font-family:monospace;color:var(--grey)">5e-04</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>swap</strong></td>
+            <td>f32</td>
+            <td>64</td>
+            <td style="font-family:monospace">0.000e+00</td>
+            <td style="font-family:monospace;color:var(--grey)">5e-04</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>gemv</strong></td>
+            <td>f32</td>
+            <td>64</td>
+            <td style="font-family:monospace">0.000e+00</td>
+            <td style="font-family:monospace;color:var(--grey)">5e-04</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>ger</strong></td>
+            <td>f32</td>
+            <td>64</td>
+            <td style="font-family:monospace">0.000e+00</td>
+            <td style="font-family:monospace;color:var(--grey)">5e-04</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>symv</strong></td>
+            <td>f32</td>
+            <td>64</td>
+            <td style="font-family:monospace">7.439e-06</td>
+            <td style="font-family:monospace;color:var(--grey)">5e-04</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>trmv</strong></td>
+            <td>f32</td>
+            <td>64</td>
+            <td style="font-family:monospace">0.000e+00</td>
+            <td style="font-family:monospace;color:var(--grey)">5e-04</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>trsv</strong></td>
+            <td>f32</td>
+            <td>64</td>
+            <td style="font-family:monospace">4.744e-07</td>
+            <td style="font-family:monospace;color:var(--grey)">5e-04</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>gemm</strong></td>
+            <td>f32</td>
+            <td>64</td>
+            <td style="font-family:monospace">0.000e+00</td>
+            <td style="font-family:monospace;color:var(--grey)">5e-04</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>symm</strong></td>
+            <td>f32</td>
+            <td>64</td>
+            <td style="font-family:monospace">0.000e+00</td>
+            <td style="font-family:monospace;color:var(--grey)">5e-04</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>syrk</strong></td>
+            <td>f32</td>
+            <td>64</td>
+            <td style="font-family:monospace">0.000e+00</td>
+            <td style="font-family:monospace;color:var(--grey)">5e-04</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>trmm</strong></td>
+            <td>f32</td>
+            <td>64</td>
+            <td style="font-family:monospace">0.000e+00</td>
+            <td style="font-family:monospace;color:var(--grey)">5e-04</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>trsm</strong></td>
+            <td>f32</td>
+            <td>64</td>
+            <td style="font-family:monospace">0.000e+00</td>
+            <td style="font-family:monospace;color:var(--grey)">5e-04</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>asum</strong></td>
+            <td>f64</td>
+            <td>512</td>
+            <td style="font-family:monospace">0.000e+00</td>
+            <td style="font-family:monospace;color:var(--grey)">1e-10</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>axpy</strong></td>
+            <td>f64</td>
+            <td>512</td>
+            <td style="font-family:monospace">0.000e+00</td>
+            <td style="font-family:monospace;color:var(--grey)">1e-10</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>dot</strong></td>
+            <td>f64</td>
+            <td>512</td>
+            <td style="font-family:monospace">0.000e+00</td>
+            <td style="font-family:monospace;color:var(--grey)">1e-10</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>nrm2</strong></td>
+            <td>f64</td>
+            <td>512</td>
+            <td style="font-family:monospace">4.073e-16</td>
+            <td style="font-family:monospace;color:var(--grey)">1e-10</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>scal</strong></td>
+            <td>f64</td>
+            <td>512</td>
+            <td style="font-family:monospace">0.000e+00</td>
+            <td style="font-family:monospace;color:var(--grey)">1e-10</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>swap</strong></td>
+            <td>f64</td>
+            <td>512</td>
+            <td style="font-family:monospace">0.000e+00</td>
+            <td style="font-family:monospace;color:var(--grey)">1e-10</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>gemv</strong></td>
+            <td>f64</td>
+            <td>512</td>
+            <td style="font-family:monospace">0.000e+00</td>
+            <td style="font-family:monospace;color:var(--grey)">1e-10</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>ger</strong></td>
+            <td>f64</td>
+            <td>512</td>
+            <td style="font-family:monospace">0.000e+00</td>
+            <td style="font-family:monospace;color:var(--grey)">1e-10</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>symv</strong></td>
+            <td>f64</td>
+            <td>512</td>
+            <td style="font-family:monospace">2.738e-13</td>
+            <td style="font-family:monospace;color:var(--grey)">1e-10</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>trmv</strong></td>
+            <td>f64</td>
+            <td>512</td>
+            <td style="font-family:monospace">0.000e+00</td>
+            <td style="font-family:monospace;color:var(--grey)">1e-10</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>trsv</strong></td>
+            <td>f64</td>
+            <td>512</td>
+            <td style="font-family:monospace">5.034e-15</td>
+            <td style="font-family:monospace;color:var(--grey)">1e-10</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>gemm</strong></td>
+            <td>f64</td>
+            <td>512</td>
+            <td style="font-family:monospace">0.000e+00</td>
+            <td style="font-family:monospace;color:var(--grey)">1e-10</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>symm</strong></td>
+            <td>f64</td>
+            <td>512</td>
+            <td style="font-family:monospace">0.000e+00</td>
+            <td style="font-family:monospace;color:var(--grey)">1e-10</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>syrk</strong></td>
+            <td>f64</td>
+            <td>512</td>
+            <td style="font-family:monospace">0.000e+00</td>
+            <td style="font-family:monospace;color:var(--grey)">1e-10</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>trmm</strong></td>
+            <td>f64</td>
+            <td>512</td>
+            <td style="font-family:monospace">0.000e+00</td>
+            <td style="font-family:monospace;color:var(--grey)">1e-10</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>trsm</strong></td>
+            <td>f64</td>
+            <td>512</td>
+            <td style="font-family:monospace">0.000e+00</td>
+            <td style="font-family:monospace;color:var(--grey)">1e-10</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>asum</strong></td>
+            <td>f32</td>
+            <td>512</td>
+            <td style="font-family:monospace">0.000e+00</td>
+            <td style="font-family:monospace;color:var(--grey)">5e-04</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>axpy</strong></td>
+            <td>f32</td>
+            <td>512</td>
+            <td style="font-family:monospace">0.000e+00</td>
+            <td style="font-family:monospace;color:var(--grey)">5e-04</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>dot</strong></td>
+            <td>f32</td>
+            <td>512</td>
+            <td style="font-family:monospace">0.000e+00</td>
+            <td style="font-family:monospace;color:var(--grey)">5e-04</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>nrm2</strong></td>
+            <td>f32</td>
+            <td>512</td>
+            <td style="font-family:monospace">8.747e-07</td>
+            <td style="font-family:monospace;color:var(--grey)">5e-04</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>scal</strong></td>
+            <td>f32</td>
+            <td>512</td>
+            <td style="font-family:monospace">0.000e+00</td>
+            <td style="font-family:monospace;color:var(--grey)">5e-04</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>swap</strong></td>
+            <td>f32</td>
+            <td>512</td>
+            <td style="font-family:monospace">0.000e+00</td>
+            <td style="font-family:monospace;color:var(--grey)">5e-04</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>gemv</strong></td>
+            <td>f32</td>
+            <td>512</td>
+            <td style="font-family:monospace">0.000e+00</td>
+            <td style="font-family:monospace;color:var(--grey)">5e-04</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>ger</strong></td>
+            <td>f32</td>
+            <td>512</td>
+            <td style="font-family:monospace">0.000e+00</td>
+            <td style="font-family:monospace;color:var(--grey)">5e-04</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>symv</strong></td>
+            <td>f32</td>
+            <td>512</td>
+            <td style="font-family:monospace">3.485e-05</td>
+            <td style="font-family:monospace;color:var(--grey)">5e-04</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>trmv</strong></td>
+            <td>f32</td>
+            <td>512</td>
+            <td style="font-family:monospace">0.000e+00</td>
+            <td style="font-family:monospace;color:var(--grey)">5e-04</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>trsv</strong></td>
+            <td>f32</td>
+            <td>512</td>
+            <td style="font-family:monospace">4.230e-06</td>
+            <td style="font-family:monospace;color:var(--grey)">5e-04</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>gemm</strong></td>
+            <td>f32</td>
+            <td>512</td>
+            <td style="font-family:monospace">0.000e+00</td>
+            <td style="font-family:monospace;color:var(--grey)">5e-04</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>symm</strong></td>
+            <td>f32</td>
+            <td>512</td>
+            <td style="font-family:monospace">0.000e+00</td>
+            <td style="font-family:monospace;color:var(--grey)">5e-04</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>syrk</strong></td>
+            <td>f32</td>
+            <td>512</td>
+            <td style="font-family:monospace">0.000e+00</td>
+            <td style="font-family:monospace;color:var(--grey)">5e-04</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>trmm</strong></td>
+            <td>f32</td>
+            <td>512</td>
+            <td style="font-family:monospace">0.000e+00</td>
+            <td style="font-family:monospace;color:var(--grey)">5e-04</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>trsm</strong></td>
+            <td>f32</td>
+            <td>512</td>
+            <td style="font-family:monospace">0.000e+00</td>
+            <td style="font-family:monospace;color:var(--grey)">5e-04</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>asum</strong></td>
+            <td>f64</td>
+            <td>2048</td>
+            <td style="font-family:monospace">0.000e+00</td>
+            <td style="font-family:monospace;color:var(--grey)">1e-10</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>axpy</strong></td>
+            <td>f64</td>
+            <td>2048</td>
+            <td style="font-family:monospace">0.000e+00</td>
+            <td style="font-family:monospace;color:var(--grey)">1e-10</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>dot</strong></td>
+            <td>f64</td>
+            <td>2048</td>
+            <td style="font-family:monospace">0.000e+00</td>
+            <td style="font-family:monospace;color:var(--grey)">1e-10</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>nrm2</strong></td>
+            <td>f64</td>
+            <td>2048</td>
+            <td style="font-family:monospace">1.087e-15</td>
+            <td style="font-family:monospace;color:var(--grey)">1e-10</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>scal</strong></td>
+            <td>f64</td>
+            <td>2048</td>
+            <td style="font-family:monospace">0.000e+00</td>
+            <td style="font-family:monospace;color:var(--grey)">1e-10</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>swap</strong></td>
+            <td>f64</td>
+            <td>2048</td>
+            <td style="font-family:monospace">0.000e+00</td>
+            <td style="font-family:monospace;color:var(--grey)">1e-10</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>gemv</strong></td>
+            <td>f64</td>
+            <td>2048</td>
+            <td style="font-family:monospace">0.000e+00</td>
+            <td style="font-family:monospace;color:var(--grey)">1e-10</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>ger</strong></td>
+            <td>f64</td>
+            <td>2048</td>
+            <td style="font-family:monospace">0.000e+00</td>
+            <td style="font-family:monospace;color:var(--grey)">1e-10</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>symv</strong></td>
+            <td>f64</td>
+            <td>2048</td>
+            <td style="font-family:monospace">7.644e-12</td>
+            <td style="font-family:monospace;color:var(--grey)">1e-10</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>trmv</strong></td>
+            <td>f64</td>
+            <td>2048</td>
+            <td style="font-family:monospace">0.000e+00</td>
+            <td style="font-family:monospace;color:var(--grey)">1e-10</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>trsv</strong></td>
+            <td>f64</td>
+            <td>2048</td>
+            <td style="font-family:monospace">9.007e-15</td>
+            <td style="font-family:monospace;color:var(--grey)">1e-10</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>gemm</strong></td>
+            <td>f64</td>
+            <td>2048</td>
+            <td style="font-family:monospace">0.000e+00</td>
+            <td style="font-family:monospace;color:var(--grey)">1e-10</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>symm</strong></td>
+            <td>f64</td>
+            <td>2048</td>
+            <td style="font-family:monospace">0.000e+00</td>
+            <td style="font-family:monospace;color:var(--grey)">1e-10</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>syrk</strong></td>
+            <td>f64</td>
+            <td>2048</td>
+            <td style="font-family:monospace">0.000e+00</td>
+            <td style="font-family:monospace;color:var(--grey)">1e-10</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>trmm</strong></td>
+            <td>f64</td>
+            <td>2048</td>
+            <td style="font-family:monospace">0.000e+00</td>
+            <td style="font-family:monospace;color:var(--grey)">1e-10</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>trsm</strong></td>
+            <td>f64</td>
+            <td>2048</td>
+            <td style="font-family:monospace">0.000e+00</td>
+            <td style="font-family:monospace;color:var(--grey)">1e-10</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>asum</strong></td>
+            <td>f32</td>
+            <td>2048</td>
+            <td style="font-family:monospace">0.000e+00</td>
+            <td style="font-family:monospace;color:var(--grey)">5e-04</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>axpy</strong></td>
+            <td>f32</td>
+            <td>2048</td>
+            <td style="font-family:monospace">0.000e+00</td>
+            <td style="font-family:monospace;color:var(--grey)">5e-04</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>dot</strong></td>
+            <td>f32</td>
+            <td>2048</td>
+            <td style="font-family:monospace">0.000e+00</td>
+            <td style="font-family:monospace;color:var(--grey)">5e-04</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>nrm2</strong></td>
+            <td>f32</td>
+            <td>2048</td>
+            <td style="font-family:monospace">4.378e-06</td>
+            <td style="font-family:monospace;color:var(--grey)">5e-04</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>scal</strong></td>
+            <td>f32</td>
+            <td>2048</td>
+            <td style="font-family:monospace">0.000e+00</td>
+            <td style="font-family:monospace;color:var(--grey)">5e-04</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>swap</strong></td>
+            <td>f32</td>
+            <td>2048</td>
+            <td style="font-family:monospace">0.000e+00</td>
+            <td style="font-family:monospace;color:var(--grey)">5e-04</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>gemv</strong></td>
+            <td>f32</td>
+            <td>2048</td>
+            <td style="font-family:monospace">0.000e+00</td>
+            <td style="font-family:monospace;color:var(--grey)">5e-04</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>ger</strong></td>
+            <td>f32</td>
+            <td>2048</td>
+            <td style="font-family:monospace">0.000e+00</td>
+            <td style="font-family:monospace;color:var(--grey)">5e-04</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>symv</strong></td>
+            <td>f32</td>
+            <td>2048</td>
+            <td style="font-family:monospace">4.024e-04</td>
+            <td style="font-family:monospace;color:var(--grey)">5e-04</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>trmv</strong></td>
+            <td>f32</td>
+            <td>2048</td>
+            <td style="font-family:monospace">0.000e+00</td>
+            <td style="font-family:monospace;color:var(--grey)">5e-04</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>trsv</strong></td>
+            <td>f32</td>
+            <td>2048</td>
+            <td style="font-family:monospace">5.378e-06</td>
+            <td style="font-family:monospace;color:var(--grey)">5e-04</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>gemm</strong></td>
+            <td>f32</td>
+            <td>2048</td>
+            <td style="font-family:monospace">0.000e+00</td>
+            <td style="font-family:monospace;color:var(--grey)">5e-04</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>symm</strong></td>
+            <td>f32</td>
+            <td>2048</td>
+            <td style="font-family:monospace">0.000e+00</td>
+            <td style="font-family:monospace;color:var(--grey)">5e-04</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>syrk</strong></td>
+            <td>f32</td>
+            <td>2048</td>
+            <td style="font-family:monospace">0.000e+00</td>
+            <td style="font-family:monospace;color:var(--grey)">5e-04</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>trmm</strong></td>
+            <td>f32</td>
+            <td>2048</td>
+            <td style="font-family:monospace">0.000e+00</td>
+            <td style="font-family:monospace;color:var(--grey)">5e-04</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>trsm</strong></td>
+            <td>f32</td>
+            <td>2048</td>
+            <td style="font-family:monospace">0.000e+00</td>
+            <td style="font-family:monospace;color:var(--grey)">5e-04</td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ── Section 2: Performance Charts ───────────────────────── -->
+    <h2>§2 — Performance (Fortran vs. Rust, mean ns/op, f64)</h2>
+    <p style="color:var(--grey);font-size:.85rem;margin-bottom:.8rem">
+      ■ <span style="color:var(--blue)">Fortran</span> &nbsp;
+      ■ <span style="color:var(--orange)">Rust</span> &nbsp;—&nbsp;
+      Lower is faster. Accuracy results are embedded in §3.
+    </p>
+
+    <div class="chart-grid">
+      
+      <div class="chart-card">
+        <h4>asum</h4>
+        <div style="height:230px;"><svg viewBox="0 0 340 230" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;font-family:'Segoe UI',Arial,sans-serif">
+<text x="63" y="183.5" text-anchor="end" font-size="9" fill="#6B7280">0ns</text>
+<line x1="68" y1="138.0" x2="330" y2="138.0" stroke="#E5E7EB" stroke-width="0.8" stroke-dasharray="4,3"/>
+<text x="63" y="141.5" text-anchor="end" font-size="9" fill="#6B7280">1.5ms</text>
+<line x1="68" y1="96.0" x2="330" y2="96.0" stroke="#E5E7EB" stroke-width="0.8" stroke-dasharray="4,3"/>
+<text x="63" y="99.5" text-anchor="end" font-size="9" fill="#6B7280">3.0ms</text>
+<line x1="68" y1="54.0" x2="330" y2="54.0" stroke="#E5E7EB" stroke-width="0.8" stroke-dasharray="4,3"/>
+<text x="63" y="57.5" text-anchor="end" font-size="9" fill="#6B7280">4.5ms</text>
+<line x1="68" y1="12.0" x2="330" y2="12.0" stroke="#E5E7EB" stroke-width="0.8" stroke-dasharray="4,3"/>
+<text x="63" y="15.5" text-anchor="end" font-size="9" fill="#6B7280">6.0ms</text>
+<line x1="68" y1="12" x2="68" y2="180" stroke="#002E5D" stroke-width="1.5"/>
+<line x1="68" y1="180" x2="330" y2="180" stroke="#002E5D" stroke-width="1.5"/>
+<rect x="82.0" y="169.6" width="27.9" height="10.4" fill="#0071CE" rx="2"><title>Fortran n=1,000,000: 369.9µs</title></rect>
+<rect x="113.4" y="170.1" width="27.9" height="9.9" fill="#F58220" rx="2"><title>Rust n=1,000,000: 355.4µs</title></rect>
+<text x="111.7" y="193" text-anchor="middle" font-size="9" fill="#1F2937">n=1,000,000</text>
+<rect x="169.3" y="140.1" width="27.9" height="39.9" fill="#0071CE" rx="2"><title>Fortran n=4,000,000: 1.4ms</title></rect>
+<rect x="200.7" y="139.9" width="27.9" height="40.1" fill="#F58220" rx="2"><title>Rust n=4,000,000: 1.4ms</title></rect>
+<text x="199.0" y="193" text-anchor="middle" font-size="9" fill="#1F2937">n=4,000,000</text>
+<rect x="256.6" y="19.3" width="27.9" height="160.7" fill="#0071CE" rx="2"><title>Fortran n=16,000,000: 5.7ms</title></rect>
+<rect x="288.1" y="20.0" width="27.9" height="160.0" fill="#F58220" rx="2"><title>Rust n=16,000,000: 5.7ms</title></rect>
+<text x="286.3" y="193" text-anchor="middle" font-size="9" fill="#1F2937">n=16,000,000</text>
+<rect x="72" y="212" width="10" height="10" fill="#0071CE" rx="2"/>
+<text x="85" y="220" font-size="10" fill="#1F2937">Fortran</text>
+<rect x="135" y="212" width="10" height="10" fill="#F58220" rx="2"/>
+<text x="148" y="220" font-size="10" fill="#1F2937">Rust</text>
+</svg></div>
+      </div>
+      
+      <div class="chart-card">
+        <h4>axpy</h4>
+        <div style="height:230px;"><svg viewBox="0 0 340 230" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;font-family:'Segoe UI',Arial,sans-serif">
+<text x="63" y="183.5" text-anchor="end" font-size="9" fill="#6B7280">0ns</text>
+<line x1="68" y1="138.0" x2="330" y2="138.0" stroke="#E5E7EB" stroke-width="0.8" stroke-dasharray="4,3"/>
+<text x="63" y="141.5" text-anchor="end" font-size="9" fill="#6B7280">1.8ms</text>
+<line x1="68" y1="96.0" x2="330" y2="96.0" stroke="#E5E7EB" stroke-width="0.8" stroke-dasharray="4,3"/>
+<text x="63" y="99.5" text-anchor="end" font-size="9" fill="#6B7280">3.5ms</text>
+<line x1="68" y1="54.0" x2="330" y2="54.0" stroke="#E5E7EB" stroke-width="0.8" stroke-dasharray="4,3"/>
+<text x="63" y="57.5" text-anchor="end" font-size="9" fill="#6B7280">5.2ms</text>
+<line x1="68" y1="12.0" x2="330" y2="12.0" stroke="#E5E7EB" stroke-width="0.8" stroke-dasharray="4,3"/>
+<text x="63" y="15.5" text-anchor="end" font-size="9" fill="#6B7280">7.0ms</text>
+<line x1="68" y1="12" x2="68" y2="180" stroke="#002E5D" stroke-width="1.5"/>
+<line x1="68" y1="180" x2="330" y2="180" stroke="#002E5D" stroke-width="1.5"/>
+<rect x="82.0" y="176.6" width="27.9" height="3.4" fill="#0071CE" rx="2"><title>Fortran n=1,000,000: 139.8µs</title></rect>
+<rect x="113.4" y="176.8" width="27.9" height="3.2" fill="#F58220" rx="2"><title>Rust n=1,000,000: 132.8µs</title></rect>
+<text x="111.7" y="193" text-anchor="middle" font-size="9" fill="#1F2937">n=1,000,000</text>
+<rect x="169.3" y="154.4" width="27.9" height="25.6" fill="#0071CE" rx="2"><title>Fortran n=4,000,000: 1.1ms</title></rect>
+<rect x="200.7" y="153.5" width="27.9" height="26.5" fill="#F58220" rx="2"><title>Rust n=4,000,000: 1.1ms</title></rect>
+<text x="199.0" y="193" text-anchor="middle" font-size="9" fill="#1F2937">n=4,000,000</text>
+<rect x="256.6" y="28.4" width="27.9" height="151.6" fill="#0071CE" rx="2"><title>Fortran n=16,000,000: 6.3ms</title></rect>
+<rect x="288.1" y="35.5" width="27.9" height="144.5" fill="#F58220" rx="2"><title>Rust n=16,000,000: 6.0ms</title></rect>
+<text x="286.3" y="193" text-anchor="middle" font-size="9" fill="#1F2937">n=16,000,000</text>
+<rect x="72" y="212" width="10" height="10" fill="#0071CE" rx="2"/>
+<text x="85" y="220" font-size="10" fill="#1F2937">Fortran</text>
+<rect x="135" y="212" width="10" height="10" fill="#F58220" rx="2"/>
+<text x="148" y="220" font-size="10" fill="#1F2937">Rust</text>
+</svg></div>
+      </div>
+      
+      <div class="chart-card">
+        <h4>dot</h4>
+        <div style="height:230px;"><svg viewBox="0 0 340 230" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;font-family:'Segoe UI',Arial,sans-serif">
+<text x="63" y="183.5" text-anchor="end" font-size="9" fill="#6B7280">0ns</text>
+<line x1="68" y1="138.0" x2="330" y2="138.0" stroke="#E5E7EB" stroke-width="0.8" stroke-dasharray="4,3"/>
+<text x="63" y="141.5" text-anchor="end" font-size="9" fill="#6B7280">1.8ms</text>
+<line x1="68" y1="96.0" x2="330" y2="96.0" stroke="#E5E7EB" stroke-width="0.8" stroke-dasharray="4,3"/>
+<text x="63" y="99.5" text-anchor="end" font-size="9" fill="#6B7280">3.5ms</text>
+<line x1="68" y1="54.0" x2="330" y2="54.0" stroke="#E5E7EB" stroke-width="0.8" stroke-dasharray="4,3"/>
+<text x="63" y="57.5" text-anchor="end" font-size="9" fill="#6B7280">5.2ms</text>
+<line x1="68" y1="12.0" x2="330" y2="12.0" stroke="#E5E7EB" stroke-width="0.8" stroke-dasharray="4,3"/>
+<text x="63" y="15.5" text-anchor="end" font-size="9" fill="#6B7280">7.0ms</text>
+<line x1="68" y1="12" x2="68" y2="180" stroke="#002E5D" stroke-width="1.5"/>
+<line x1="68" y1="180" x2="330" y2="180" stroke="#002E5D" stroke-width="1.5"/>
+<rect x="82.0" y="171.4" width="27.9" height="8.6" fill="#0071CE" rx="2"><title>Fortran n=1,000,000: 360.3µs</title></rect>
+<rect x="113.4" y="171.3" width="27.9" height="8.7" fill="#F58220" rx="2"><title>Rust n=1,000,000: 364.4µs</title></rect>
+<text x="111.7" y="193" text-anchor="middle" font-size="9" fill="#1F2937">n=1,000,000</text>
+<rect x="169.3" y="145.0" width="27.9" height="35.0" fill="#0071CE" rx="2"><title>Fortran n=4,000,000: 1.5ms</title></rect>
+<rect x="200.7" y="145.3" width="27.9" height="34.7" fill="#F58220" rx="2"><title>Rust n=4,000,000: 1.4ms</title></rect>
+<text x="199.0" y="193" text-anchor="middle" font-size="9" fill="#1F2937">n=4,000,000</text>
+<rect x="256.6" y="34.9" width="27.9" height="145.1" fill="#0071CE" rx="2"><title>Fortran n=16,000,000: 6.0ms</title></rect>
+<rect x="288.1" y="41.9" width="27.9" height="138.1" fill="#F58220" rx="2"><title>Rust n=16,000,000: 5.8ms</title></rect>
+<text x="286.3" y="193" text-anchor="middle" font-size="9" fill="#1F2937">n=16,000,000</text>
+<rect x="72" y="212" width="10" height="10" fill="#0071CE" rx="2"/>
+<text x="85" y="220" font-size="10" fill="#1F2937">Fortran</text>
+<rect x="135" y="212" width="10" height="10" fill="#F58220" rx="2"/>
+<text x="148" y="220" font-size="10" fill="#1F2937">Rust</text>
+</svg></div>
+      </div>
+      
+      <div class="chart-card">
+        <h4>gemm</h4>
+        <div style="height:230px;"><svg viewBox="0 0 340 230" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;font-family:'Segoe UI',Arial,sans-serif">
+<text x="63" y="183.5" text-anchor="end" font-size="9" fill="#6B7280">0ns</text>
+<line x1="68" y1="138.0" x2="330" y2="138.0" stroke="#E5E7EB" stroke-width="0.8" stroke-dasharray="4,3"/>
+<text x="63" y="141.5" text-anchor="end" font-size="9" fill="#6B7280">5.0ms</text>
+<line x1="68" y1="96.0" x2="330" y2="96.0" stroke="#E5E7EB" stroke-width="0.8" stroke-dasharray="4,3"/>
+<text x="63" y="99.5" text-anchor="end" font-size="9" fill="#6B7280">10.0ms</text>
+<line x1="68" y1="54.0" x2="330" y2="54.0" stroke="#E5E7EB" stroke-width="0.8" stroke-dasharray="4,3"/>
+<text x="63" y="57.5" text-anchor="end" font-size="9" fill="#6B7280">15.0ms</text>
+<line x1="68" y1="12.0" x2="330" y2="12.0" stroke="#E5E7EB" stroke-width="0.8" stroke-dasharray="4,3"/>
+<text x="63" y="15.5" text-anchor="end" font-size="9" fill="#6B7280">20.0ms</text>
+<line x1="68" y1="12" x2="68" y2="180" stroke="#002E5D" stroke-width="1.5"/>
+<line x1="68" y1="180" x2="330" y2="180" stroke="#002E5D" stroke-width="1.5"/>
+<rect x="82.0" y="179.8" width="27.9" height="0.2" fill="#0071CE" rx="2"><title>Fortran n=64: 29.0µs</title></rect>
+<rect x="113.4" y="179.7" width="27.9" height="0.3" fill="#F58220" rx="2"><title>Rust n=64: 35.0µs</title></rect>
+<text x="111.7" y="193" text-anchor="middle" font-size="9" fill="#1F2937">n=64</text>
+<rect x="169.3" y="164.5" width="27.9" height="15.5" fill="#0071CE" rx="2"><title>Fortran n=256: 1.8ms</title></rect>
+<rect x="200.7" y="161.5" width="27.9" height="18.5" fill="#F58220" rx="2"><title>Rust n=256: 2.2ms</title></rect>
+<text x="199.0" y="193" text-anchor="middle" font-size="9" fill="#1F2937">n=256</text>
+<rect x="256.6" y="56.4" width="27.9" height="123.6" fill="#0071CE" rx="2"><title>Fortran n=512: 14.7ms</title></rect>
+<rect x="288.1" y="39.9" width="27.9" height="140.1" fill="#F58220" rx="2"><title>Rust n=512: 16.7ms</title></rect>
+<text x="286.3" y="193" text-anchor="middle" font-size="9" fill="#1F2937">n=512</text>
+<rect x="72" y="212" width="10" height="10" fill="#0071CE" rx="2"/>
+<text x="85" y="220" font-size="10" fill="#1F2937">Fortran</text>
+<rect x="135" y="212" width="10" height="10" fill="#F58220" rx="2"/>
+<text x="148" y="220" font-size="10" fill="#1F2937">Rust</text>
+</svg></div>
+      </div>
+      
+      <div class="chart-card">
+        <h4>gemv</h4>
+        <div style="height:230px;"><svg viewBox="0 0 340 230" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;font-family:'Segoe UI',Arial,sans-serif">
+<text x="63" y="183.5" text-anchor="end" font-size="9" fill="#6B7280">0ns</text>
+<line x1="68" y1="138.0" x2="330" y2="138.0" stroke="#E5E7EB" stroke-width="0.8" stroke-dasharray="4,3"/>
+<text x="63" y="141.5" text-anchor="end" font-size="9" fill="#6B7280">1.5ms</text>
+<line x1="68" y1="96.0" x2="330" y2="96.0" stroke="#E5E7EB" stroke-width="0.8" stroke-dasharray="4,3"/>
+<text x="63" y="99.5" text-anchor="end" font-size="9" fill="#6B7280">3.0ms</text>
+<line x1="68" y1="54.0" x2="330" y2="54.0" stroke="#E5E7EB" stroke-width="0.8" stroke-dasharray="4,3"/>
+<text x="63" y="57.5" text-anchor="end" font-size="9" fill="#6B7280">4.5ms</text>
+<line x1="68" y1="12.0" x2="330" y2="12.0" stroke="#E5E7EB" stroke-width="0.8" stroke-dasharray="4,3"/>
+<text x="63" y="15.5" text-anchor="end" font-size="9" fill="#6B7280">6.0ms</text>
+<line x1="68" y1="12" x2="68" y2="180" stroke="#002E5D" stroke-width="1.5"/>
+<line x1="68" y1="180" x2="330" y2="180" stroke="#002E5D" stroke-width="1.5"/>
+<rect x="89.0" y="179.1" width="41.9" height="0.9" fill="#0071CE" rx="2"><title>Fortran n=512: 33.3µs</title></rect>
+<rect x="136.1" y="178.1" width="41.9" height="1.9" fill="#F58220" rx="2"><title>Rust n=512: 68.8µs</title></rect>
+<text x="133.5" y="193" text-anchor="middle" font-size="9" fill="#1F2937">n=512</text>
+<rect x="220.0" y="76.0" width="41.9" height="104.0" fill="#0071CE" rx="2"><title>Fortran n=4,096: 3.7ms</title></rect>
+<rect x="267.1" y="17.4" width="41.9" height="162.6" fill="#F58220" rx="2"><title>Rust n=4,096: 5.8ms</title></rect>
+<text x="264.5" y="193" text-anchor="middle" font-size="9" fill="#1F2937">n=4,096</text>
+<rect x="72" y="212" width="10" height="10" fill="#0071CE" rx="2"/>
+<text x="85" y="220" font-size="10" fill="#1F2937">Fortran</text>
+<rect x="135" y="212" width="10" height="10" fill="#F58220" rx="2"/>
+<text x="148" y="220" font-size="10" fill="#1F2937">Rust</text>
+</svg></div>
+      </div>
+      
+      <div class="chart-card">
+        <h4>ger</h4>
+        <div style="height:230px;"><svg viewBox="0 0 340 230" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;font-family:'Segoe UI',Arial,sans-serif">
+<text x="63" y="183.5" text-anchor="end" font-size="9" fill="#6B7280">0ns</text>
+<line x1="68" y1="138.0" x2="330" y2="138.0" stroke="#E5E7EB" stroke-width="0.8" stroke-dasharray="4,3"/>
+<text x="63" y="141.5" text-anchor="end" font-size="9" fill="#6B7280">1.8ms</text>
+<line x1="68" y1="96.0" x2="330" y2="96.0" stroke="#E5E7EB" stroke-width="0.8" stroke-dasharray="4,3"/>
+<text x="63" y="99.5" text-anchor="end" font-size="9" fill="#6B7280">3.5ms</text>
+<line x1="68" y1="54.0" x2="330" y2="54.0" stroke="#E5E7EB" stroke-width="0.8" stroke-dasharray="4,3"/>
+<text x="63" y="57.5" text-anchor="end" font-size="9" fill="#6B7280">5.2ms</text>
+<line x1="68" y1="12.0" x2="330" y2="12.0" stroke="#E5E7EB" stroke-width="0.8" stroke-dasharray="4,3"/>
+<text x="63" y="15.5" text-anchor="end" font-size="9" fill="#6B7280">7.0ms</text>
+<line x1="68" y1="12" x2="68" y2="180" stroke="#002E5D" stroke-width="1.5"/>
+<line x1="68" y1="180" x2="330" y2="180" stroke="#002E5D" stroke-width="1.5"/>
+<rect x="89.0" y="179.1" width="41.9" height="0.9" fill="#0071CE" rx="2"><title>Fortran n=512: 36.3µs</title></rect>
+<rect x="136.1" y="179.3" width="41.9" height="0.7" fill="#F58220" rx="2"><title>Rust n=512: 30.1µs</title></rect>
+<text x="133.5" y="193" text-anchor="middle" font-size="9" fill="#1F2937">n=512</text>
+<rect x="220.0" y="32.9" width="41.9" height="147.1" fill="#0071CE" rx="2"><title>Fortran n=4,096: 6.1ms</title></rect>
+<rect x="267.1" y="44.3" width="41.9" height="135.7" fill="#F58220" rx="2"><title>Rust n=4,096: 5.7ms</title></rect>
+<text x="264.5" y="193" text-anchor="middle" font-size="9" fill="#1F2937">n=4,096</text>
+<rect x="72" y="212" width="10" height="10" fill="#0071CE" rx="2"/>
+<text x="85" y="220" font-size="10" fill="#1F2937">Fortran</text>
+<rect x="135" y="212" width="10" height="10" fill="#F58220" rx="2"/>
+<text x="148" y="220" font-size="10" fill="#1F2937">Rust</text>
+</svg></div>
+      </div>
+      
+      <div class="chart-card">
+        <h4>nrm2</h4>
+        <div style="height:230px;"><svg viewBox="0 0 340 230" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;font-family:'Segoe UI',Arial,sans-serif">
+<text x="63" y="183.5" text-anchor="end" font-size="9" fill="#6B7280">0ns</text>
+<line x1="68" y1="138.0" x2="330" y2="138.0" stroke="#E5E7EB" stroke-width="0.8" stroke-dasharray="4,3"/>
+<text x="63" y="141.5" text-anchor="end" font-size="9" fill="#6B7280">7.5ms</text>
+<line x1="68" y1="96.0" x2="330" y2="96.0" stroke="#E5E7EB" stroke-width="0.8" stroke-dasharray="4,3"/>
+<text x="63" y="99.5" text-anchor="end" font-size="9" fill="#6B7280">15.0ms</text>
+<line x1="68" y1="54.0" x2="330" y2="54.0" stroke="#E5E7EB" stroke-width="0.8" stroke-dasharray="4,3"/>
+<text x="63" y="57.5" text-anchor="end" font-size="9" fill="#6B7280">22.5ms</text>
+<line x1="68" y1="12.0" x2="330" y2="12.0" stroke="#E5E7EB" stroke-width="0.8" stroke-dasharray="4,3"/>
+<text x="63" y="15.5" text-anchor="end" font-size="9" fill="#6B7280">30.0ms</text>
+<line x1="68" y1="12" x2="68" y2="180" stroke="#002E5D" stroke-width="1.5"/>
+<line x1="68" y1="180" x2="330" y2="180" stroke="#002E5D" stroke-width="1.5"/>
+<rect x="82.0" y="177.5" width="27.9" height="2.5" fill="#0071CE" rx="2"><title>Fortran n=1,000,000: 445.1µs</title></rect>
+<rect x="113.4" y="170.9" width="27.9" height="9.1" fill="#F58220" rx="2"><title>Rust n=1,000,000: 1.6ms</title></rect>
+<text x="111.7" y="193" text-anchor="middle" font-size="9" fill="#1F2937">n=1,000,000</text>
+<rect x="169.3" y="169.8" width="27.9" height="10.2" fill="#0071CE" rx="2"><title>Fortran n=4,000,000: 1.8ms</title></rect>
+<rect x="200.7" y="143.5" width="27.9" height="36.5" fill="#F58220" rx="2"><title>Rust n=4,000,000: 6.5ms</title></rect>
+<text x="199.0" y="193" text-anchor="middle" font-size="9" fill="#1F2937">n=4,000,000</text>
+<rect x="256.6" y="139.3" width="27.9" height="40.7" fill="#0071CE" rx="2"><title>Fortran n=16,000,000: 7.3ms</title></rect>
+<rect x="288.1" y="34.4" width="27.9" height="145.6" fill="#F58220" rx="2"><title>Rust n=16,000,000: 26.0ms</title></rect>
+<text x="286.3" y="193" text-anchor="middle" font-size="9" fill="#1F2937">n=16,000,000</text>
+<rect x="72" y="212" width="10" height="10" fill="#0071CE" rx="2"/>
+<text x="85" y="220" font-size="10" fill="#1F2937">Fortran</text>
+<rect x="135" y="212" width="10" height="10" fill="#F58220" rx="2"/>
+<text x="148" y="220" font-size="10" fill="#1F2937">Rust</text>
+</svg></div>
+      </div>
+      
+      <div class="chart-card">
+        <h4>scal</h4>
+        <div style="height:230px;"><svg viewBox="0 0 340 230" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;font-family:'Segoe UI',Arial,sans-serif">
+<text x="63" y="183.5" text-anchor="end" font-size="9" fill="#6B7280">0ns</text>
+<line x1="68" y1="138.0" x2="330" y2="138.0" stroke="#E5E7EB" stroke-width="0.8" stroke-dasharray="4,3"/>
+<text x="63" y="141.5" text-anchor="end" font-size="9" fill="#6B7280">1.2ms</text>
+<line x1="68" y1="96.0" x2="330" y2="96.0" stroke="#E5E7EB" stroke-width="0.8" stroke-dasharray="4,3"/>
+<text x="63" y="99.5" text-anchor="end" font-size="9" fill="#6B7280">2.5ms</text>
+<line x1="68" y1="54.0" x2="330" y2="54.0" stroke="#E5E7EB" stroke-width="0.8" stroke-dasharray="4,3"/>
+<text x="63" y="57.5" text-anchor="end" font-size="9" fill="#6B7280">3.8ms</text>
+<line x1="68" y1="12.0" x2="330" y2="12.0" stroke="#E5E7EB" stroke-width="0.8" stroke-dasharray="4,3"/>
+<text x="63" y="15.5" text-anchor="end" font-size="9" fill="#6B7280">5.0ms</text>
+<line x1="68" y1="12" x2="68" y2="180" stroke="#002E5D" stroke-width="1.5"/>
+<line x1="68" y1="180" x2="330" y2="180" stroke="#002E5D" stroke-width="1.5"/>
+<rect x="82.0" y="177.4" width="27.9" height="2.6" fill="#0071CE" rx="2"><title>Fortran n=1,000,000: 77.7µs</title></rect>
+<rect x="113.4" y="177.6" width="27.9" height="2.4" fill="#F58220" rx="2"><title>Rust n=1,000,000: 71.2µs</title></rect>
+<text x="111.7" y="193" text-anchor="middle" font-size="9" fill="#1F2937">n=1,000,000</text>
+<rect x="169.3" y="162.8" width="27.9" height="17.2" fill="#0071CE" rx="2"><title>Fortran n=4,000,000: 512.9µs</title></rect>
+<rect x="200.7" y="165.7" width="27.9" height="14.3" fill="#F58220" rx="2"><title>Rust n=4,000,000: 424.5µs</title></rect>
+<text x="199.0" y="193" text-anchor="middle" font-size="9" fill="#1F2937">n=4,000,000</text>
+<rect x="256.6" y="15.4" width="27.9" height="164.6" fill="#0071CE" rx="2"><title>Fortran n=16,000,000: 4.9ms</title></rect>
+<rect x="288.1" y="37.4" width="27.9" height="142.6" fill="#F58220" rx="2"><title>Rust n=16,000,000: 4.2ms</title></rect>
+<text x="286.3" y="193" text-anchor="middle" font-size="9" fill="#1F2937">n=16,000,000</text>
+<rect x="72" y="212" width="10" height="10" fill="#0071CE" rx="2"/>
+<text x="85" y="220" font-size="10" fill="#1F2937">Fortran</text>
+<rect x="135" y="212" width="10" height="10" fill="#F58220" rx="2"/>
+<text x="148" y="220" font-size="10" fill="#1F2937">Rust</text>
+</svg></div>
+      </div>
+      
+      <div class="chart-card">
+        <h4>swap</h4>
+        <div style="height:230px;"><svg viewBox="0 0 340 230" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;font-family:'Segoe UI',Arial,sans-serif">
+<text x="63" y="183.5" text-anchor="end" font-size="9" fill="#6B7280">0ns</text>
+<line x1="68" y1="138.0" x2="330" y2="138.0" stroke="#E5E7EB" stroke-width="0.8" stroke-dasharray="4,3"/>
+<text x="63" y="141.5" text-anchor="end" font-size="9" fill="#6B7280">2.5ms</text>
+<line x1="68" y1="96.0" x2="330" y2="96.0" stroke="#E5E7EB" stroke-width="0.8" stroke-dasharray="4,3"/>
+<text x="63" y="99.5" text-anchor="end" font-size="9" fill="#6B7280">5.0ms</text>
+<line x1="68" y1="54.0" x2="330" y2="54.0" stroke="#E5E7EB" stroke-width="0.8" stroke-dasharray="4,3"/>
+<text x="63" y="57.5" text-anchor="end" font-size="9" fill="#6B7280">7.5ms</text>
+<line x1="68" y1="12.0" x2="330" y2="12.0" stroke="#E5E7EB" stroke-width="0.8" stroke-dasharray="4,3"/>
+<text x="63" y="15.5" text-anchor="end" font-size="9" fill="#6B7280">10.0ms</text>
+<line x1="68" y1="12" x2="68" y2="180" stroke="#002E5D" stroke-width="1.5"/>
+<line x1="68" y1="180" x2="330" y2="180" stroke="#002E5D" stroke-width="1.5"/>
+<rect x="82.0" y="177.4" width="27.9" height="2.6" fill="#0071CE" rx="2"><title>Fortran n=1,000,000: 157.1µs</title></rect>
+<rect x="113.4" y="177.6" width="27.9" height="2.4" fill="#F58220" rx="2"><title>Rust n=1,000,000: 140.2µs</title></rect>
+<text x="111.7" y="193" text-anchor="middle" font-size="9" fill="#1F2937">n=1,000,000</text>
+<rect x="169.3" y="153.0" width="27.9" height="27.0" fill="#0071CE" rx="2"><title>Fortran n=4,000,000: 1.6ms</title></rect>
+<rect x="200.7" y="154.9" width="27.9" height="25.1" fill="#F58220" rx="2"><title>Rust n=4,000,000: 1.5ms</title></rect>
+<text x="199.0" y="193" text-anchor="middle" font-size="9" fill="#1F2937">n=4,000,000</text>
+<rect x="256.6" y="18.0" width="27.9" height="162.0" fill="#0071CE" rx="2"><title>Fortran n=16,000,000: 9.6ms</title></rect>
+<rect x="288.1" y="38.7" width="27.9" height="141.3" fill="#F58220" rx="2"><title>Rust n=16,000,000: 8.4ms</title></rect>
+<text x="286.3" y="193" text-anchor="middle" font-size="9" fill="#1F2937">n=16,000,000</text>
+<rect x="72" y="212" width="10" height="10" fill="#0071CE" rx="2"/>
+<text x="85" y="220" font-size="10" fill="#1F2937">Fortran</text>
+<rect x="135" y="212" width="10" height="10" fill="#F58220" rx="2"/>
+<text x="148" y="220" font-size="10" fill="#1F2937">Rust</text>
+</svg></div>
+      </div>
+      
+      <div class="chart-card">
+        <h4>symm</h4>
+        <div style="height:230px;"><svg viewBox="0 0 340 230" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;font-family:'Segoe UI',Arial,sans-serif">
+<text x="63" y="183.5" text-anchor="end" font-size="9" fill="#6B7280">0ns</text>
+<line x1="68" y1="138.0" x2="330" y2="138.0" stroke="#E5E7EB" stroke-width="0.8" stroke-dasharray="4,3"/>
+<text x="63" y="141.5" text-anchor="end" font-size="9" fill="#6B7280">50.0ms</text>
+<line x1="68" y1="96.0" x2="330" y2="96.0" stroke="#E5E7EB" stroke-width="0.8" stroke-dasharray="4,3"/>
+<text x="63" y="99.5" text-anchor="end" font-size="9" fill="#6B7280">100.0ms</text>
+<line x1="68" y1="54.0" x2="330" y2="54.0" stroke="#E5E7EB" stroke-width="0.8" stroke-dasharray="4,3"/>
+<text x="63" y="57.5" text-anchor="end" font-size="9" fill="#6B7280">150.0ms</text>
+<line x1="68" y1="12.0" x2="330" y2="12.0" stroke="#E5E7EB" stroke-width="0.8" stroke-dasharray="4,3"/>
+<text x="63" y="15.5" text-anchor="end" font-size="9" fill="#6B7280">200.0ms</text>
+<line x1="68" y1="12" x2="68" y2="180" stroke="#002E5D" stroke-width="1.5"/>
+<line x1="68" y1="180" x2="330" y2="180" stroke="#002E5D" stroke-width="1.5"/>
+<rect x="82.0" y="180.0" width="27.9" height="0.0" fill="#0071CE" rx="2"><title>Fortran n=64: 36.5µs</title></rect>
+<rect x="113.4" y="179.9" width="27.9" height="0.1" fill="#F58220" rx="2"><title>Rust n=64: 126.9µs</title></rect>
+<text x="111.7" y="193" text-anchor="middle" font-size="9" fill="#1F2937">n=64</text>
+<rect x="169.3" y="177.8" width="27.9" height="2.2" fill="#0071CE" rx="2"><title>Fortran n=256: 2.6ms</title></rect>
+<rect x="200.7" y="171.9" width="27.9" height="8.1" fill="#F58220" rx="2"><title>Rust n=256: 9.7ms</title></rect>
+<text x="199.0" y="193" text-anchor="middle" font-size="9" fill="#1F2937">n=256</text>
+<rect x="256.6" y="161.2" width="27.9" height="18.8" fill="#0071CE" rx="2"><title>Fortran n=512: 22.4ms</title></rect>
+<rect x="288.1" y="13.2" width="27.9" height="166.8" fill="#F58220" rx="2"><title>Rust n=512: 198.6ms</title></rect>
+<text x="286.3" y="193" text-anchor="middle" font-size="9" fill="#1F2937">n=512</text>
+<rect x="72" y="212" width="10" height="10" fill="#0071CE" rx="2"/>
+<text x="85" y="220" font-size="10" fill="#1F2937">Fortran</text>
+<rect x="135" y="212" width="10" height="10" fill="#F58220" rx="2"/>
+<text x="148" y="220" font-size="10" fill="#1F2937">Rust</text>
+</svg></div>
+      </div>
+      
+      <div class="chart-card">
+        <h4>symv</h4>
+        <div style="height:230px;"><svg viewBox="0 0 340 230" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;font-family:'Segoe UI',Arial,sans-serif">
+<text x="63" y="183.5" text-anchor="end" font-size="9" fill="#6B7280">0ns</text>
+<line x1="68" y1="138.0" x2="330" y2="138.0" stroke="#E5E7EB" stroke-width="0.8" stroke-dasharray="4,3"/>
+<text x="63" y="141.5" text-anchor="end" font-size="9" fill="#6B7280">1.5ms</text>
+<line x1="68" y1="96.0" x2="330" y2="96.0" stroke="#E5E7EB" stroke-width="0.8" stroke-dasharray="4,3"/>
+<text x="63" y="99.5" text-anchor="end" font-size="9" fill="#6B7280">3.0ms</text>
+<line x1="68" y1="54.0" x2="330" y2="54.0" stroke="#E5E7EB" stroke-width="0.8" stroke-dasharray="4,3"/>
+<text x="63" y="57.5" text-anchor="end" font-size="9" fill="#6B7280">4.5ms</text>
+<line x1="68" y1="12.0" x2="330" y2="12.0" stroke="#E5E7EB" stroke-width="0.8" stroke-dasharray="4,3"/>
+<text x="63" y="15.5" text-anchor="end" font-size="9" fill="#6B7280">6.0ms</text>
+<line x1="68" y1="12" x2="68" y2="180" stroke="#002E5D" stroke-width="1.5"/>
+<line x1="68" y1="180" x2="330" y2="180" stroke="#002E5D" stroke-width="1.5"/>
+<rect x="89.0" y="178.8" width="41.9" height="1.2" fill="#0071CE" rx="2"><title>Fortran n=512: 42.5µs</title></rect>
+<rect x="136.1" y="178.4" width="41.9" height="1.6" fill="#F58220" rx="2"><title>Rust n=512: 58.5µs</title></rect>
+<text x="133.5" y="193" text-anchor="middle" font-size="9" fill="#1F2937">n=512</text>
+<rect x="220.0" y="45.3" width="41.9" height="134.7" fill="#0071CE" rx="2"><title>Fortran n=4,096: 4.8ms</title></rect>
+<rect x="267.1" y="27.2" width="41.9" height="152.8" fill="#F58220" rx="2"><title>Rust n=4,096: 5.5ms</title></rect>
+<text x="264.5" y="193" text-anchor="middle" font-size="9" fill="#1F2937">n=4,096</text>
+<rect x="72" y="212" width="10" height="10" fill="#0071CE" rx="2"/>
+<text x="85" y="220" font-size="10" fill="#1F2937">Fortran</text>
+<rect x="135" y="212" width="10" height="10" fill="#F58220" rx="2"/>
+<text x="148" y="220" font-size="10" fill="#1F2937">Rust</text>
+</svg></div>
+      </div>
+      
+      <div class="chart-card">
+        <h4>syrk</h4>
+        <div style="height:230px;"><svg viewBox="0 0 340 230" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;font-family:'Segoe UI',Arial,sans-serif">
+<text x="63" y="183.5" text-anchor="end" font-size="9" fill="#6B7280">0ns</text>
+<line x1="68" y1="138.0" x2="330" y2="138.0" stroke="#E5E7EB" stroke-width="0.8" stroke-dasharray="4,3"/>
+<text x="63" y="141.5" text-anchor="end" font-size="9" fill="#6B7280">12.5ms</text>
+<line x1="68" y1="96.0" x2="330" y2="96.0" stroke="#E5E7EB" stroke-width="0.8" stroke-dasharray="4,3"/>
+<text x="63" y="99.5" text-anchor="end" font-size="9" fill="#6B7280">25.0ms</text>
+<line x1="68" y1="54.0" x2="330" y2="54.0" stroke="#E5E7EB" stroke-width="0.8" stroke-dasharray="4,3"/>
+<text x="63" y="57.5" text-anchor="end" font-size="9" fill="#6B7280">37.5ms</text>
+<line x1="68" y1="12.0" x2="330" y2="12.0" stroke="#E5E7EB" stroke-width="0.8" stroke-dasharray="4,3"/>
+<text x="63" y="15.5" text-anchor="end" font-size="9" fill="#6B7280">50.0ms</text>
+<line x1="68" y1="12" x2="68" y2="180" stroke="#002E5D" stroke-width="1.5"/>
+<line x1="68" y1="180" x2="330" y2="180" stroke="#002E5D" stroke-width="1.5"/>
+<rect x="82.0" y="179.9" width="27.9" height="0.1" fill="#0071CE" rx="2"><title>Fortran n=64: 18.1µs</title></rect>
+<rect x="113.4" y="179.7" width="27.9" height="0.3" fill="#F58220" rx="2"><title>Rust n=64: 93.3µs</title></rect>
+<text x="111.7" y="193" text-anchor="middle" font-size="9" fill="#1F2937">n=64</text>
+<rect x="169.3" y="176.7" width="27.9" height="3.3" fill="#0071CE" rx="2"><title>Fortran n=256: 995.7µs</title></rect>
+<rect x="200.7" y="159.5" width="27.9" height="20.5" fill="#F58220" rx="2"><title>Rust n=256: 6.1ms</title></rect>
+<text x="199.0" y="193" text-anchor="middle" font-size="9" fill="#1F2937">n=256</text>
+<rect x="256.6" y="150.8" width="27.9" height="29.2" fill="#0071CE" rx="2"><title>Fortran n=512: 8.7ms</title></rect>
+<rect x="288.1" y="16.5" width="27.9" height="163.5" fill="#F58220" rx="2"><title>Rust n=512: 48.7ms</title></rect>
+<text x="286.3" y="193" text-anchor="middle" font-size="9" fill="#1F2937">n=512</text>
+<rect x="72" y="212" width="10" height="10" fill="#0071CE" rx="2"/>
+<text x="85" y="220" font-size="10" fill="#1F2937">Fortran</text>
+<rect x="135" y="212" width="10" height="10" fill="#F58220" rx="2"/>
+<text x="148" y="220" font-size="10" fill="#1F2937">Rust</text>
+</svg></div>
+      </div>
+      
+      <div class="chart-card">
+        <h4>trmm</h4>
+        <div style="height:230px;"><svg viewBox="0 0 340 230" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;font-family:'Segoe UI',Arial,sans-serif">
+<text x="63" y="183.5" text-anchor="end" font-size="9" fill="#6B7280">0ns</text>
+<line x1="68" y1="138.0" x2="330" y2="138.0" stroke="#E5E7EB" stroke-width="0.8" stroke-dasharray="4,3"/>
+<text x="63" y="141.5" text-anchor="end" font-size="9" fill="#6B7280">100.0ms</text>
+<line x1="68" y1="96.0" x2="330" y2="96.0" stroke="#E5E7EB" stroke-width="0.8" stroke-dasharray="4,3"/>
+<text x="63" y="99.5" text-anchor="end" font-size="9" fill="#6B7280">200.0ms</text>
+<line x1="68" y1="54.0" x2="330" y2="54.0" stroke="#E5E7EB" stroke-width="0.8" stroke-dasharray="4,3"/>
+<text x="63" y="57.5" text-anchor="end" font-size="9" fill="#6B7280">300.0ms</text>
+<line x1="68" y1="12.0" x2="330" y2="12.0" stroke="#E5E7EB" stroke-width="0.8" stroke-dasharray="4,3"/>
+<text x="63" y="15.5" text-anchor="end" font-size="9" fill="#6B7280">400.0ms</text>
+<line x1="68" y1="12" x2="68" y2="180" stroke="#002E5D" stroke-width="1.5"/>
+<line x1="68" y1="180" x2="330" y2="180" stroke="#002E5D" stroke-width="1.5"/>
+<rect x="82.0" y="180.0" width="27.9" height="0.0" fill="#0071CE" rx="2"><title>Fortran n=64: 18.1µs</title></rect>
+<rect x="113.4" y="180.0" width="27.9" height="0.0" fill="#F58220" rx="2"><title>Rust n=64: 37.2µs</title></rect>
+<text x="111.7" y="193" text-anchor="middle" font-size="9" fill="#1F2937">n=64</text>
+<rect x="169.3" y="179.5" width="27.9" height="0.5" fill="#0071CE" rx="2"><title>Fortran n=256: 1.2ms</title></rect>
+<rect x="200.7" y="177.2" width="27.9" height="2.8" fill="#F58220" rx="2"><title>Rust n=256: 6.7ms</title></rect>
+<text x="199.0" y="193" text-anchor="middle" font-size="9" fill="#1F2937">n=256</text>
+<rect x="256.6" y="176.2" width="27.9" height="3.8" fill="#0071CE" rx="2"><title>Fortran n=512: 9.1ms</title></rect>
+<rect x="288.1" y="45.4" width="27.9" height="134.6" fill="#F58220" rx="2"><title>Rust n=512: 320.5ms</title></rect>
+<text x="286.3" y="193" text-anchor="middle" font-size="9" fill="#1F2937">n=512</text>
+<rect x="72" y="212" width="10" height="10" fill="#0071CE" rx="2"/>
+<text x="85" y="220" font-size="10" fill="#1F2937">Fortran</text>
+<rect x="135" y="212" width="10" height="10" fill="#F58220" rx="2"/>
+<text x="148" y="220" font-size="10" fill="#1F2937">Rust</text>
+</svg></div>
+      </div>
+      
+      <div class="chart-card">
+        <h4>trmv</h4>
+        <div style="height:230px;"><svg viewBox="0 0 340 230" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;font-family:'Segoe UI',Arial,sans-serif">
+<text x="63" y="183.5" text-anchor="end" font-size="9" fill="#6B7280">0ns</text>
+<line x1="68" y1="138.0" x2="330" y2="138.0" stroke="#E5E7EB" stroke-width="0.8" stroke-dasharray="4,3"/>
+<text x="63" y="141.5" text-anchor="end" font-size="9" fill="#6B7280">1.2ms</text>
+<line x1="68" y1="96.0" x2="330" y2="96.0" stroke="#E5E7EB" stroke-width="0.8" stroke-dasharray="4,3"/>
+<text x="63" y="99.5" text-anchor="end" font-size="9" fill="#6B7280">2.5ms</text>
+<line x1="68" y1="54.0" x2="330" y2="54.0" stroke="#E5E7EB" stroke-width="0.8" stroke-dasharray="4,3"/>
+<text x="63" y="57.5" text-anchor="end" font-size="9" fill="#6B7280">3.8ms</text>
+<line x1="68" y1="12.0" x2="330" y2="12.0" stroke="#E5E7EB" stroke-width="0.8" stroke-dasharray="4,3"/>
+<text x="63" y="15.5" text-anchor="end" font-size="9" fill="#6B7280">5.0ms</text>
+<line x1="68" y1="12" x2="68" y2="180" stroke="#002E5D" stroke-width="1.5"/>
+<line x1="68" y1="180" x2="330" y2="180" stroke="#002E5D" stroke-width="1.5"/>
+<rect x="89.0" y="179.3" width="41.9" height="0.7" fill="#0071CE" rx="2"><title>Fortran n=512: 21.0µs</title></rect>
+<rect x="136.1" y="178.4" width="41.9" height="1.6" fill="#F58220" rx="2"><title>Rust n=512: 48.9µs</title></rect>
+<text x="133.5" y="193" text-anchor="middle" font-size="9" fill="#1F2937">n=512</text>
+<rect x="220.0" y="88.8" width="41.9" height="91.2" fill="#0071CE" rx="2"><title>Fortran n=4,096: 2.7ms</title></rect>
+<rect x="267.1" y="40.5" width="41.9" height="139.5" fill="#F58220" rx="2"><title>Rust n=4,096: 4.2ms</title></rect>
+<text x="264.5" y="193" text-anchor="middle" font-size="9" fill="#1F2937">n=4,096</text>
+<rect x="72" y="212" width="10" height="10" fill="#0071CE" rx="2"/>
+<text x="85" y="220" font-size="10" fill="#1F2937">Fortran</text>
+<rect x="135" y="212" width="10" height="10" fill="#F58220" rx="2"/>
+<text x="148" y="220" font-size="10" fill="#1F2937">Rust</text>
+</svg></div>
+      </div>
+      
+      <div class="chart-card">
+        <h4>trsm</h4>
+        <div style="height:230px;"><svg viewBox="0 0 340 230" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;font-family:'Segoe UI',Arial,sans-serif">
+<text x="63" y="183.5" text-anchor="end" font-size="9" fill="#6B7280">0ns</text>
+<line x1="68" y1="138.0" x2="330" y2="138.0" stroke="#E5E7EB" stroke-width="0.8" stroke-dasharray="4,3"/>
+<text x="63" y="141.5" text-anchor="end" font-size="9" fill="#6B7280">7.5ms</text>
+<line x1="68" y1="96.0" x2="330" y2="96.0" stroke="#E5E7EB" stroke-width="0.8" stroke-dasharray="4,3"/>
+<text x="63" y="99.5" text-anchor="end" font-size="9" fill="#6B7280">15.0ms</text>
+<line x1="68" y1="54.0" x2="330" y2="54.0" stroke="#E5E7EB" stroke-width="0.8" stroke-dasharray="4,3"/>
+<text x="63" y="57.5" text-anchor="end" font-size="9" fill="#6B7280">22.5ms</text>
+<line x1="68" y1="12.0" x2="330" y2="12.0" stroke="#E5E7EB" stroke-width="0.8" stroke-dasharray="4,3"/>
+<text x="63" y="15.5" text-anchor="end" font-size="9" fill="#6B7280">30.0ms</text>
+<line x1="68" y1="12" x2="68" y2="180" stroke="#002E5D" stroke-width="1.5"/>
+<line x1="68" y1="180" x2="330" y2="180" stroke="#002E5D" stroke-width="1.5"/>
+<rect x="82.0" y="179.7" width="27.9" height="0.3" fill="#0071CE" rx="2"><title>Fortran n=64: 50.6µs</title></rect>
+<rect x="113.4" y="179.9" width="27.9" height="0.1" fill="#F58220" rx="2"><title>Rust n=64: 26.7µs</title></rect>
+<text x="111.7" y="193" text-anchor="middle" font-size="9" fill="#1F2937">n=64</text>
+<rect x="169.3" y="164.9" width="27.9" height="15.1" fill="#0071CE" rx="2"><title>Fortran n=256: 2.7ms</title></rect>
+<rect x="200.7" y="173.6" width="27.9" height="6.4" fill="#F58220" rx="2"><title>Rust n=256: 1.1ms</title></rect>
+<text x="199.0" y="193" text-anchor="middle" font-size="9" fill="#1F2937">n=256</text>
+<rect x="256.6" y="63.4" width="27.9" height="116.6" fill="#0071CE" rx="2"><title>Fortran n=512: 20.8ms</title></rect>
+<rect x="288.1" y="124.1" width="27.9" height="55.9" fill="#F58220" rx="2"><title>Rust n=512: 10.0ms</title></rect>
+<text x="286.3" y="193" text-anchor="middle" font-size="9" fill="#1F2937">n=512</text>
+<rect x="72" y="212" width="10" height="10" fill="#0071CE" rx="2"/>
+<text x="85" y="220" font-size="10" fill="#1F2937">Fortran</text>
+<rect x="135" y="212" width="10" height="10" fill="#F58220" rx="2"/>
+<text x="148" y="220" font-size="10" fill="#1F2937">Rust</text>
+</svg></div>
+      </div>
+      
+      <div class="chart-card">
+        <h4>trsv</h4>
+        <div style="height:230px;"><svg viewBox="0 0 340 230" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;font-family:'Segoe UI',Arial,sans-serif">
+<text x="63" y="183.5" text-anchor="end" font-size="9" fill="#6B7280">0ns</text>
+<line x1="68" y1="138.0" x2="330" y2="138.0" stroke="#E5E7EB" stroke-width="0.8" stroke-dasharray="4,3"/>
+<text x="63" y="141.5" text-anchor="end" font-size="9" fill="#6B7280">10.0ms</text>
+<line x1="68" y1="96.0" x2="330" y2="96.0" stroke="#E5E7EB" stroke-width="0.8" stroke-dasharray="4,3"/>
+<text x="63" y="99.5" text-anchor="end" font-size="9" fill="#6B7280">20.0ms</text>
+<line x1="68" y1="54.0" x2="330" y2="54.0" stroke="#E5E7EB" stroke-width="0.8" stroke-dasharray="4,3"/>
+<text x="63" y="57.5" text-anchor="end" font-size="9" fill="#6B7280">30.0ms</text>
+<line x1="68" y1="12.0" x2="330" y2="12.0" stroke="#E5E7EB" stroke-width="0.8" stroke-dasharray="4,3"/>
+<text x="63" y="15.5" text-anchor="end" font-size="9" fill="#6B7280">40.0ms</text>
+<line x1="68" y1="12" x2="68" y2="180" stroke="#002E5D" stroke-width="1.5"/>
+<line x1="68" y1="180" x2="330" y2="180" stroke="#002E5D" stroke-width="1.5"/>
+<rect x="89.0" y="179.9" width="41.9" height="0.1" fill="#0071CE" rx="2"><title>Fortran n=512: 23.5µs</title></rect>
+<rect x="136.1" y="177.3" width="41.9" height="2.7" fill="#F58220" rx="2"><title>Rust n=512: 633.4µs</title></rect>
+<text x="133.5" y="193" text-anchor="middle" font-size="9" fill="#1F2937">n=512</text>
+<rect x="220.0" y="166.6" width="41.9" height="13.4" fill="#0071CE" rx="2"><title>Fortran n=4,096: 3.2ms</title></rect>
+<rect x="267.1" y="21.5" width="41.9" height="158.5" fill="#F58220" rx="2"><title>Rust n=4,096: 37.7ms</title></rect>
+<text x="264.5" y="193" text-anchor="middle" font-size="9" fill="#1F2937">n=4,096</text>
+<rect x="72" y="212" width="10" height="10" fill="#0071CE" rx="2"/>
+<text x="85" y="220" font-size="10" fill="#1F2937">Fortran</text>
+<rect x="135" y="212" width="10" height="10" fill="#F58220" rx="2"/>
+<text x="148" y="220" font-size="10" fill="#1F2937">Rust</text>
+</svg></div>
+      </div>
+      
+    </div>
+
+    <!-- ── Section 3: Speed + Accuracy Tables ───────────────────── -->
+    <h2>§3 — Speed &amp; Accuracy (Rust / Fortran comparison)</h2>
+    <p style="color:var(--grey);font-size:.85rem;margin-bottom:.8rem">
+      Speedup = Rust ns ÷ Fortran ns (lower = Rust faster).
+      "Rust Accuracy" = max relative error vs. reference BLAS at that n.
+    </p>
+
+    <h3 style="margin-top:1rem">f64 — double precision</h3>
+    
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Routine</th>
+            <th>N</th>
+            <th>Fortran (ns)</th>
+            <th>Rust (ns)</th>
+            <th>Speedup</th>
+            <th>Rust Max Rel Err</th>
+            <th>Accuracy</th>
+          </tr>
+        </thead>
+        <tbody>
+          
+          <tr>
+            <td><strong>asum</strong></td>
+            <td>1000000</td>
+            <td style="font-family:monospace">369,900.0</td>
+            <td style="font-family:monospace">355,356.4</td>
+            <td>
+              
+              <span class="speedup-good">0.961× ▲</span>
+                
+            </td>
+            <td style="font-family:monospace">
+              0.000e+00
+            </td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>asum</strong></td>
+            <td>4000000</td>
+            <td style="font-family:monospace">1,423,400.0</td>
+            <td style="font-family:monospace">1,431,053.2</td>
+            <td>
+              
+              <span class="speedup-good">1.005× ▲</span>
+                
+            </td>
+            <td style="font-family:monospace">
+              0.000e+00
+            </td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>asum</strong></td>
+            <td>16000000</td>
+            <td style="font-family:monospace">5,738,300.0</td>
+            <td style="font-family:monospace">5,714,794.6</td>
+            <td>
+              
+              <span class="speedup-good">0.996× ▲</span>
+                
+            </td>
+            <td style="font-family:monospace">
+              0.000e+00
+            </td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>axpy</strong></td>
+            <td>1000000</td>
+            <td style="font-family:monospace">139,800.0</td>
+            <td style="font-family:monospace">132,824.1</td>
+            <td>
+              
+              <span class="speedup-good">0.950× ▲</span>
+                
+            </td>
+            <td style="font-family:monospace">
+              0.000e+00
+            </td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>axpy</strong></td>
+            <td>4000000</td>
+            <td style="font-family:monospace">1,065,600.0</td>
+            <td style="font-family:monospace">1,102,961.1</td>
+            <td>
+              
+              <span class="speedup-good">1.035× ▲</span>
+                
+            </td>
+            <td style="font-family:monospace">
+              0.000e+00
+            </td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>axpy</strong></td>
+            <td>16000000</td>
+            <td style="font-family:monospace">6,317,500.0</td>
+            <td style="font-family:monospace">6,021,337.6</td>
+            <td>
+              
+              <span class="speedup-good">0.953× ▲</span>
+                
+            </td>
+            <td style="font-family:monospace">
+              0.000e+00
+            </td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>dot</strong></td>
+            <td>1000000</td>
+            <td style="font-family:monospace">360,300.0</td>
+            <td style="font-family:monospace">364,418.9</td>
+            <td>
+              
+              <span class="speedup-good">1.011× ▲</span>
+                
+            </td>
+            <td style="font-family:monospace">
+              0.000e+00
+            </td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>dot</strong></td>
+            <td>4000000</td>
+            <td style="font-family:monospace">1,460,100.0</td>
+            <td style="font-family:monospace">1,446,082.2</td>
+            <td>
+              
+              <span class="speedup-good">0.990× ▲</span>
+                
+            </td>
+            <td style="font-family:monospace">
+              0.000e+00
+            </td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>dot</strong></td>
+            <td>16000000</td>
+            <td style="font-family:monospace">6,044,400.0</td>
+            <td style="font-family:monospace">5,754,569.7</td>
+            <td>
+              
+              <span class="speedup-good">0.952× ▲</span>
+                
+            </td>
+            <td style="font-family:monospace">
+              0.000e+00
+            </td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>gemm</strong></td>
+            <td>64</td>
+            <td style="font-family:monospace">29,000.0</td>
+            <td style="font-family:monospace">35,032.6</td>
+            <td>
+              
+              <span class="speedup-ok">1.208×</span>
+                  
+            </td>
+            <td style="font-family:monospace">
+              0.000e+00
+            </td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>gemm</strong></td>
+            <td>256</td>
+            <td style="font-family:monospace">1,846,700.0</td>
+            <td style="font-family:monospace">2,202,468.1</td>
+            <td>
+              
+              <span class="speedup-ok">1.193×</span>
+                  
+            </td>
+            <td style="font-family:monospace">
+              0.000e+00
+            </td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>gemm</strong></td>
+            <td>512</td>
+            <td style="font-family:monospace">14,712,800.0</td>
+            <td style="font-family:monospace">16,679,839.5</td>
+            <td>
+              
+              <span class="speedup-ok">1.134×</span>
+                  
+            </td>
+            <td style="font-family:monospace">
+              0.000e+00
+            </td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>gemv</strong></td>
+            <td>512</td>
+            <td style="font-family:monospace">33,300.0</td>
+            <td style="font-family:monospace">68,818.6</td>
+            <td>
+              
+              <span class="speedup-ok">2.067×</span>
+                  
+            </td>
+            <td style="font-family:monospace">
+              0.000e+00
+            </td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>gemv</strong></td>
+            <td>4096</td>
+            <td style="font-family:monospace">3,715,500.0</td>
+            <td style="font-family:monospace">5,807,088.8</td>
+            <td>
+              
+              <span class="speedup-ok">1.563×</span>
+                  
+            </td>
+            <td style="font-family:monospace">
+              0.000e+00
+            </td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>ger</strong></td>
+            <td>512</td>
+            <td style="font-family:monospace">36,300.0</td>
+            <td style="font-family:monospace">30,101.6</td>
+            <td>
+              
+              <span class="speedup-good">0.829× ▲</span>
+                
+            </td>
+            <td style="font-family:monospace">
+              0.000e+00
+            </td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>ger</strong></td>
+            <td>4096</td>
+            <td style="font-family:monospace">6,130,300.0</td>
+            <td style="font-family:monospace">5,652,747.2</td>
+            <td>
+              
+              <span class="speedup-good">0.922× ▲</span>
+                
+            </td>
+            <td style="font-family:monospace">
+              0.000e+00
+            </td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>nrm2</strong></td>
+            <td>1000000</td>
+            <td style="font-family:monospace">445,100.0</td>
+            <td style="font-family:monospace">1,626,422.6</td>
+            <td>
+              
+              <span class="speedup-bad">3.654× ▼</span>
+                  
+            </td>
+            <td style="font-family:monospace">
+              1.087e-15
+            </td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>nrm2</strong></td>
+            <td>4000000</td>
+            <td style="font-family:monospace">1,815,100.0</td>
+            <td style="font-family:monospace">6,522,257.7</td>
+            <td>
+              
+              <span class="speedup-bad">3.593× ▼</span>
+                  
+            </td>
+            <td style="font-family:monospace">
+              1.087e-15
+            </td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>nrm2</strong></td>
+            <td>16000000</td>
+            <td style="font-family:monospace">7,273,500.0</td>
+            <td style="font-family:monospace">25,992,406.4</td>
+            <td>
+              
+              <span class="speedup-bad">3.574× ▼</span>
+                  
+            </td>
+            <td style="font-family:monospace">
+              1.087e-15
+            </td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>scal</strong></td>
+            <td>1000000</td>
+            <td style="font-family:monospace">77,700.0</td>
+            <td style="font-family:monospace">71,153.5</td>
+            <td>
+              
+              <span class="speedup-good">0.916× ▲</span>
+                
+            </td>
+            <td style="font-family:monospace">
+              0.000e+00
+            </td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>scal</strong></td>
+            <td>4000000</td>
+            <td style="font-family:monospace">512,900.0</td>
+            <td style="font-family:monospace">424,531.6</td>
+            <td>
+              
+              <span class="speedup-good">0.828× ▲</span>
+                
+            </td>
+            <td style="font-family:monospace">
+              0.000e+00
+            </td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>scal</strong></td>
+            <td>16000000</td>
+            <td style="font-family:monospace">4,897,400.0</td>
+            <td style="font-family:monospace">4,245,289.7</td>
+            <td>
+              
+              <span class="speedup-good">0.867× ▲</span>
+                
+            </td>
+            <td style="font-family:monospace">
+              0.000e+00
+            </td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>swap</strong></td>
+            <td>1000000</td>
+            <td style="font-family:monospace">157,100.0</td>
+            <td style="font-family:monospace">140,212.4</td>
+            <td>
+              
+              <span class="speedup-good">0.893× ▲</span>
+                
+            </td>
+            <td style="font-family:monospace">
+              0.000e+00
+            </td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>swap</strong></td>
+            <td>4000000</td>
+            <td style="font-family:monospace">1,605,300.0</td>
+            <td style="font-family:monospace">1,491,640.4</td>
+            <td>
+              
+              <span class="speedup-good">0.929× ▲</span>
+                
+            </td>
+            <td style="font-family:monospace">
+              0.000e+00
+            </td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>swap</strong></td>
+            <td>16000000</td>
+            <td style="font-family:monospace">9,641,500.0</td>
+            <td style="font-family:monospace">8,407,999.5</td>
+            <td>
+              
+              <span class="speedup-good">0.872× ▲</span>
+                
+            </td>
+            <td style="font-family:monospace">
+              0.000e+00
+            </td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>symm</strong></td>
+            <td>64</td>
+            <td style="font-family:monospace">36,500.0</td>
+            <td style="font-family:monospace">126,931.8</td>
+            <td>
+              
+              <span class="speedup-bad">3.478× ▼</span>
+                  
+            </td>
+            <td style="font-family:monospace">
+              0.000e+00
+            </td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>symm</strong></td>
+            <td>256</td>
+            <td style="font-family:monospace">2,612,900.0</td>
+            <td style="font-family:monospace">9,688,705.4</td>
+            <td>
+              
+              <span class="speedup-bad">3.708× ▼</span>
+                  
+            </td>
+            <td style="font-family:monospace">
+              0.000e+00
+            </td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>symm</strong></td>
+            <td>512</td>
+            <td style="font-family:monospace">22,418,500.0</td>
+            <td style="font-family:monospace">198,586,125.7</td>
+            <td>
+              
+              <span class="speedup-bad">8.858× ▼</span>
+                  
+            </td>
+            <td style="font-family:monospace">
+              0.000e+00
+            </td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>symv</strong></td>
+            <td>512</td>
+            <td style="font-family:monospace">42,500.0</td>
+            <td style="font-family:monospace">58,479.1</td>
+            <td>
+              
+              <span class="speedup-ok">1.376×</span>
+                  
+            </td>
+            <td style="font-family:monospace">
+              2.738e-13
+            </td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>symv</strong></td>
+            <td>4096</td>
+            <td style="font-family:monospace">4,809,900.0</td>
+            <td style="font-family:monospace">5,457,826.8</td>
+            <td>
+              
+              <span class="speedup-ok">1.135×</span>
+                  
+            </td>
+            <td style="font-family:monospace">
+              7.644e-12
+            </td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>syrk</strong></td>
+            <td>64</td>
+            <td style="font-family:monospace">18,100.0</td>
+            <td style="font-family:monospace">93,271.4</td>
+            <td>
+              
+              <span class="speedup-bad">5.153× ▼</span>
+                  
+            </td>
+            <td style="font-family:monospace">
+              0.000e+00
+            </td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>syrk</strong></td>
+            <td>256</td>
+            <td style="font-family:monospace">995,700.0</td>
+            <td style="font-family:monospace">6,112,258.9</td>
+            <td>
+              
+              <span class="speedup-bad">6.139× ▼</span>
+                  
+            </td>
+            <td style="font-family:monospace">
+              0.000e+00
+            </td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>syrk</strong></td>
+            <td>512</td>
+            <td style="font-family:monospace">8,683,300.0</td>
+            <td style="font-family:monospace">48,658,979.5</td>
+            <td>
+              
+              <span class="speedup-bad">5.604× ▼</span>
+                  
+            </td>
+            <td style="font-family:monospace">
+              0.000e+00
+            </td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>trmm</strong></td>
+            <td>64</td>
+            <td style="font-family:monospace">18,100.0</td>
+            <td style="font-family:monospace">37,188.5</td>
+            <td>
+              
+              <span class="speedup-ok">2.055×</span>
+                  
+            </td>
+            <td style="font-family:monospace">
+              0.000e+00
+            </td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>trmm</strong></td>
+            <td>256</td>
+            <td style="font-family:monospace">1,170,700.0</td>
+            <td style="font-family:monospace">6,654,512.7</td>
+            <td>
+              
+              <span class="speedup-bad">5.684× ▼</span>
+                  
+            </td>
+            <td style="font-family:monospace">
+              0.000e+00
+            </td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>trmm</strong></td>
+            <td>512</td>
+            <td style="font-family:monospace">9,124,900.0</td>
+            <td style="font-family:monospace">320,516,517.6</td>
+            <td>
+              
+              <span class="speedup-bad">35.125× ▼</span>
+                  
+            </td>
+            <td style="font-family:monospace">
+              0.000e+00
+            </td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>trmv</strong></td>
+            <td>512</td>
+            <td style="font-family:monospace">21,000.0</td>
+            <td style="font-family:monospace">48,944.9</td>
+            <td>
+              
+              <span class="speedup-ok">2.331×</span>
+                  
+            </td>
+            <td style="font-family:monospace">
+              0.000e+00
+            </td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>trmv</strong></td>
+            <td>4096</td>
+            <td style="font-family:monospace">2,712,800.0</td>
+            <td style="font-family:monospace">4,152,612.4</td>
+            <td>
+              
+              <span class="speedup-ok">1.531×</span>
+                  
+            </td>
+            <td style="font-family:monospace">
+              0.000e+00
+            </td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>trsm</strong></td>
+            <td>64</td>
+            <td style="font-family:monospace">50,600.0</td>
+            <td style="font-family:monospace">26,748.0</td>
+            <td>
+              
+              <span class="speedup-good">0.529× ▲</span>
+                
+            </td>
+            <td style="font-family:monospace">
+              0.000e+00
+            </td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>trsm</strong></td>
+            <td>256</td>
+            <td style="font-family:monospace">2,702,400.0</td>
+            <td style="font-family:monospace">1,134,101.2</td>
+            <td>
+              
+              <span class="speedup-good">0.420× ▲</span>
+                
+            </td>
+            <td style="font-family:monospace">
+              0.000e+00
+            </td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>trsm</strong></td>
+            <td>512</td>
+            <td style="font-family:monospace">20,812,600.0</td>
+            <td style="font-family:monospace">9,989,094.4</td>
+            <td>
+              
+              <span class="speedup-good">0.480× ▲</span>
+                
+            </td>
+            <td style="font-family:monospace">
+              0.000e+00
+            </td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>trsv</strong></td>
+            <td>512</td>
+            <td style="font-family:monospace">23,500.0</td>
+            <td style="font-family:monospace">633,371.8</td>
+            <td>
+              
+              <span class="speedup-bad">26.952× ▼</span>
+                  
+            </td>
+            <td style="font-family:monospace">
+              5.034e-15
+            </td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>trsv</strong></td>
+            <td>4096</td>
+            <td style="font-family:monospace">3,197,200.0</td>
+            <td style="font-family:monospace">37,730,784.6</td>
+            <td>
+              
+              <span class="speedup-bad">11.801× ▼</span>
+                  
+            </td>
+            <td style="font-family:monospace">
+              9.007e-15
+            </td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+        </tbody>
+      </table>
+    </div>
+    
+
+    <h3 style="margin-top:1.5rem">f32 — single precision</h3>
+    
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Routine</th>
+            <th>N</th>
+            <th>Fortran (ns)</th>
+            <th>Rust (ns)</th>
+            <th>Speedup</th>
+            <th>Rust Max Rel Err</th>
+            <th>Accuracy</th>
+          </tr>
+        </thead>
+        <tbody>
+          
+          <tr>
+            <td><strong>asum</strong></td>
+            <td>1000000</td>
+            <td style="font-family:monospace">370,000.0</td>
+            <td style="font-family:monospace">355,852.8</td>
+            <td>
+              
+              <span class="speedup-good">0.962× ▲</span>
+                
+            </td>
+            <td style="font-family:monospace">
+              0.000e+00
+            </td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>asum</strong></td>
+            <td>4000000</td>
+            <td style="font-family:monospace">1,416,599.8</td>
+            <td style="font-family:monospace">1,454,308.5</td>
+            <td>
+              
+              <span class="speedup-good">1.027× ▲</span>
+                
+            </td>
+            <td style="font-family:monospace">
+              0.000e+00
+            </td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>asum</strong></td>
+            <td>16000000</td>
+            <td style="font-family:monospace">5,680,102.0</td>
+            <td style="font-family:monospace">5,850,518.5</td>
+            <td>
+              
+              <span class="speedup-good">1.030× ▲</span>
+                
+            </td>
+            <td style="font-family:monospace">
+              0.000e+00
+            </td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>axpy</strong></td>
+            <td>1000000</td>
+            <td style="font-family:monospace">74,600.2</td>
+            <td style="font-family:monospace">62,368.9</td>
+            <td>
+              
+              <span class="speedup-good">0.836× ▲</span>
+                
+            </td>
+            <td style="font-family:monospace">
+              0.000e+00
+            </td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>axpy</strong></td>
+            <td>4000000</td>
+            <td style="font-family:monospace">380,101.1</td>
+            <td style="font-family:monospace">314,908.2</td>
+            <td>
+              
+              <span class="speedup-good">0.828× ▲</span>
+                
+            </td>
+            <td style="font-family:monospace">
+              0.000e+00
+            </td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>axpy</strong></td>
+            <td>16000000</td>
+            <td style="font-family:monospace">2,843,594.5</td>
+            <td style="font-family:monospace">2,485,633.8</td>
+            <td>
+              
+              <span class="speedup-good">0.874× ▲</span>
+                
+            </td>
+            <td style="font-family:monospace">
+              0.000e+00
+            </td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>dot</strong></td>
+            <td>1000000</td>
+            <td style="font-family:monospace">356,200.0</td>
+            <td style="font-family:monospace">358,466.0</td>
+            <td>
+              
+              <span class="speedup-good">1.006× ▲</span>
+                
+            </td>
+            <td style="font-family:monospace">
+              0.000e+00
+            </td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>dot</strong></td>
+            <td>4000000</td>
+            <td style="font-family:monospace">1,474,599.5</td>
+            <td style="font-family:monospace">1,421,498.7</td>
+            <td>
+              
+              <span class="speedup-good">0.964× ▲</span>
+                
+            </td>
+            <td style="font-family:monospace">
+              0.000e+00
+            </td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>dot</strong></td>
+            <td>16000000</td>
+            <td style="font-family:monospace">5,813,802.0</td>
+            <td style="font-family:monospace">5,695,304.5</td>
+            <td>
+              
+              <span class="speedup-good">0.980× ▲</span>
+                
+            </td>
+            <td style="font-family:monospace">
+              0.000e+00
+            </td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>gemm</strong></td>
+            <td>64</td>
+            <td style="font-family:monospace">16,188.6</td>
+            <td style="font-family:monospace">23,974.2</td>
+            <td>
+              
+              <span class="speedup-ok">1.481×</span>
+                  
+            </td>
+            <td style="font-family:monospace">
+              0.000e+00
+            </td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>gemm</strong></td>
+            <td>256</td>
+            <td style="font-family:monospace">831,997.4</td>
+            <td style="font-family:monospace">1,070,896.8</td>
+            <td>
+              
+              <span class="speedup-ok">1.287×</span>
+                  
+            </td>
+            <td style="font-family:monospace">
+              0.000e+00
+            </td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>gemm</strong></td>
+            <td>512</td>
+            <td style="font-family:monospace">6,782,793.5</td>
+            <td style="font-family:monospace">8,184,150.6</td>
+            <td>
+              
+              <span class="speedup-ok">1.207×</span>
+                  
+            </td>
+            <td style="font-family:monospace">
+              0.000e+00
+            </td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>gemv</strong></td>
+            <td>512</td>
+            <td style="font-family:monospace">17,595.3</td>
+            <td style="font-family:monospace">59,012.4</td>
+            <td>
+              
+              <span class="speedup-bad">3.354× ▼</span>
+                  
+            </td>
+            <td style="font-family:monospace">
+              0.000e+00
+            </td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>gemv</strong></td>
+            <td>4096</td>
+            <td style="font-family:monospace">1,300,311.1</td>
+            <td style="font-family:monospace">3,669,624.4</td>
+            <td>
+              
+              <span class="speedup-ok">2.822×</span>
+                  
+            </td>
+            <td style="font-family:monospace">
+              0.000e+00
+            </td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>ger</strong></td>
+            <td>512</td>
+            <td style="font-family:monospace">18,811.2</td>
+            <td style="font-family:monospace">15,629.9</td>
+            <td>
+              
+              <span class="speedup-good">0.831× ▲</span>
+                
+            </td>
+            <td style="font-family:monospace">
+              0.000e+00
+            </td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>ger</strong></td>
+            <td>4096</td>
+            <td style="font-family:monospace">2,111,709.2</td>
+            <td style="font-family:monospace">1,975,864.9</td>
+            <td>
+              
+              <span class="speedup-good">0.936× ▲</span>
+                
+            </td>
+            <td style="font-family:monospace">
+              0.000e+00
+            </td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>nrm2</strong></td>
+            <td>1000000</td>
+            <td style="font-family:monospace">441,099.3</td>
+            <td style="font-family:monospace">1,657,760.3</td>
+            <td>
+              
+              <span class="speedup-bad">3.758× ▼</span>
+                  
+            </td>
+            <td style="font-family:monospace">
+              4.378e-06
+            </td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>nrm2</strong></td>
+            <td>4000000</td>
+            <td style="font-family:monospace">1,770,499.4</td>
+            <td style="font-family:monospace">6,553,449.7</td>
+            <td>
+              
+              <span class="speedup-bad">3.701× ▼</span>
+                  
+            </td>
+            <td style="font-family:monospace">
+              4.378e-06
+            </td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>nrm2</strong></td>
+            <td>16000000</td>
+            <td style="font-family:monospace">7,118,290.5</td>
+            <td style="font-family:monospace">26,068,233.5</td>
+            <td>
+              
+              <span class="speedup-bad">3.662× ▼</span>
+                  
+            </td>
+            <td style="font-family:monospace">
+              4.378e-06
+            </td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>scal</strong></td>
+            <td>1000000</td>
+            <td style="font-family:monospace">40,499.9</td>
+            <td style="font-family:monospace">35,341.6</td>
+            <td>
+              
+              <span class="speedup-good">0.873× ▲</span>
+                
+            </td>
+            <td style="font-family:monospace">
+              0.000e+00
+            </td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>scal</strong></td>
+            <td>4000000</td>
+            <td style="font-family:monospace">213,800.4</td>
+            <td style="font-family:monospace">143,815.4</td>
+            <td>
+              
+              <span class="speedup-good">0.673× ▲</span>
+                
+            </td>
+            <td style="font-family:monospace">
+              0.000e+00
+            </td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>scal</strong></td>
+            <td>16000000</td>
+            <td style="font-family:monospace">1,892,393.8</td>
+            <td style="font-family:monospace">1,665,956.7</td>
+            <td>
+              
+              <span class="speedup-good">0.880× ▲</span>
+                
+            </td>
+            <td style="font-family:monospace">
+              0.000e+00
+            </td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>swap</strong></td>
+            <td>1000000</td>
+            <td style="font-family:monospace">76,400.1</td>
+            <td style="font-family:monospace">75,811.4</td>
+            <td>
+              
+              <span class="speedup-good">0.992× ▲</span>
+                
+            </td>
+            <td style="font-family:monospace">
+              0.000e+00
+            </td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>swap</strong></td>
+            <td>4000000</td>
+            <td style="font-family:monospace">437,501.1</td>
+            <td style="font-family:monospace">335,154.6</td>
+            <td>
+              
+              <span class="speedup-good">0.766× ▲</span>
+                
+            </td>
+            <td style="font-family:monospace">
+              0.000e+00
+            </td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>swap</strong></td>
+            <td>16000000</td>
+            <td style="font-family:monospace">4,419,195.5</td>
+            <td style="font-family:monospace">3,824,139.7</td>
+            <td>
+              
+              <span class="speedup-good">0.865× ▲</span>
+                
+            </td>
+            <td style="font-family:monospace">
+              0.000e+00
+            </td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>symm</strong></td>
+            <td>64</td>
+            <td style="font-family:monospace">26,297.6</td>
+            <td style="font-family:monospace">157,797.2</td>
+            <td>
+              
+              <span class="speedup-bad">6.000× ▼</span>
+                  
+            </td>
+            <td style="font-family:monospace">
+              0.000e+00
+            </td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>symm</strong></td>
+            <td>256</td>
+            <td style="font-family:monospace">2,160,597.0</td>
+            <td style="font-family:monospace">9,243,983.3</td>
+            <td>
+              
+              <span class="speedup-bad">4.278× ▼</span>
+                  
+            </td>
+            <td style="font-family:monospace">
+              0.000e+00
+            </td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>symm</strong></td>
+            <td>512</td>
+            <td style="font-family:monospace">20,106,196.0</td>
+            <td style="font-family:monospace">91,897,730.9</td>
+            <td>
+              
+              <span class="speedup-bad">4.571× ▼</span>
+                  
+            </td>
+            <td style="font-family:monospace">
+              0.000e+00
+            </td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>symv</strong></td>
+            <td>512</td>
+            <td style="font-family:monospace">39,410.6</td>
+            <td style="font-family:monospace">55,423.1</td>
+            <td>
+              
+              <span class="speedup-ok">1.406×</span>
+                  
+            </td>
+            <td style="font-family:monospace">
+              3.485e-05
+            </td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>symv</strong></td>
+            <td>4096</td>
+            <td style="font-family:monospace">3,457,415.2</td>
+            <td style="font-family:monospace">3,883,037.8</td>
+            <td>
+              
+              <span class="speedup-ok">1.123×</span>
+                  
+            </td>
+            <td style="font-family:monospace">
+              4.024e-04
+            </td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>syrk</strong></td>
+            <td>64</td>
+            <td style="font-family:monospace">12,290.5</td>
+            <td style="font-family:monospace">93,718.3</td>
+            <td>
+              
+              <span class="speedup-bad">7.625× ▼</span>
+                  
+            </td>
+            <td style="font-family:monospace">
+              0.000e+00
+            </td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>syrk</strong></td>
+            <td>256</td>
+            <td style="font-family:monospace">498,592.8</td>
+            <td style="font-family:monospace">6,097,589.1</td>
+            <td>
+              
+              <span class="speedup-bad">12.230× ▼</span>
+                  
+            </td>
+            <td style="font-family:monospace">
+              0.000e+00
+            </td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>syrk</strong></td>
+            <td>512</td>
+            <td style="font-family:monospace">4,087,114.5</td>
+            <td style="font-family:monospace">48,478,737.2</td>
+            <td>
+              
+              <span class="speedup-bad">11.861× ▼</span>
+                  
+            </td>
+            <td style="font-family:monospace">
+              0.000e+00
+            </td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>trmm</strong></td>
+            <td>64</td>
+            <td style="font-family:monospace">12,004.4</td>
+            <td style="font-family:monospace">36,263.4</td>
+            <td>
+              
+              <span class="speedup-bad">3.021× ▼</span>
+                  
+            </td>
+            <td style="font-family:monospace">
+              0.000e+00
+            </td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>trmm</strong></td>
+            <td>256</td>
+            <td style="font-family:monospace">564,503.6</td>
+            <td style="font-family:monospace">4,476,290.9</td>
+            <td>
+              
+              <span class="speedup-bad">7.930× ▼</span>
+                  
+            </td>
+            <td style="font-family:monospace">
+              0.000e+00
+            </td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>trmm</strong></td>
+            <td>512</td>
+            <td style="font-family:monospace">4,982,829.0</td>
+            <td style="font-family:monospace">54,820,812.3</td>
+            <td>
+              
+              <span class="speedup-bad">11.002× ▼</span>
+                  
+            </td>
+            <td style="font-family:monospace">
+              0.000e+00
+            </td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>trmv</strong></td>
+            <td>512</td>
+            <td style="font-family:monospace">11,193.8</td>
+            <td style="font-family:monospace">48,742.9</td>
+            <td>
+              
+              <span class="speedup-bad">4.354× ▼</span>
+                  
+            </td>
+            <td style="font-family:monospace">
+              0.000e+00
+            </td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>trmv</strong></td>
+            <td>4096</td>
+            <td style="font-family:monospace">1,421,391.9</td>
+            <td style="font-family:monospace">3,413,882.6</td>
+            <td>
+              
+              <span class="speedup-ok">2.402×</span>
+                  
+            </td>
+            <td style="font-family:monospace">
+              0.000e+00
+            </td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>trsm</strong></td>
+            <td>64</td>
+            <td style="font-family:monospace">48,601.6</td>
+            <td style="font-family:monospace">22,406.8</td>
+            <td>
+              
+              <span class="speedup-good">0.461× ▲</span>
+                
+            </td>
+            <td style="font-family:monospace">
+              0.000e+00
+            </td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>trsm</strong></td>
+            <td>256</td>
+            <td style="font-family:monospace">2,670,407.2</td>
+            <td style="font-family:monospace">642,569.1</td>
+            <td>
+              
+              <span class="speedup-good">0.241× ▲</span>
+                
+            </td>
+            <td style="font-family:monospace">
+              0.000e+00
+            </td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>trsm</strong></td>
+            <td>512</td>
+            <td style="font-family:monospace">20,152,354.0</td>
+            <td style="font-family:monospace">4,709,732.3</td>
+            <td>
+              
+              <span class="speedup-good">0.234× ▲</span>
+                
+            </td>
+            <td style="font-family:monospace">
+              0.000e+00
+            </td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>trsv</strong></td>
+            <td>512</td>
+            <td style="font-family:monospace">12,588.5</td>
+            <td style="font-family:monospace">108,612.6</td>
+            <td>
+              
+              <span class="speedup-bad">8.628× ▼</span>
+                  
+            </td>
+            <td style="font-family:monospace">
+              4.230e-06
+            </td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+          <tr>
+            <td><strong>trsv</strong></td>
+            <td>4096</td>
+            <td style="font-family:monospace">1,789,271.8</td>
+            <td style="font-family:monospace">40,402,711.8</td>
+            <td>
+              
+              <span class="speedup-bad">22.581× ▼</span>
+                  
+            </td>
+            <td style="font-family:monospace">
+              5.378e-06
+            </td>
+            <td>
+              
+              <span class="pass">✓ PASS</span>
+              
+            </td>
+          </tr>
+          
+        </tbody>
+      </table>
+    </div>
+    
+
+  </main>
+
+  <footer>
+    Generated by BLAS Conversion Copilot &nbsp;·&nbsp;
+    BLAS 3.12.0 (Fortran) → Rust &nbsp;·&nbsp;
+  </footer>
+
+</body>
+
+</html>
