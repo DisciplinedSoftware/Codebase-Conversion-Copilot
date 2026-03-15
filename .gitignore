@@ -2,3 +2,4 @@ rust_blas/target/
 *.tgz
 BLAS-3.12.0/
 report.html
+._BLAS-3.12.0
