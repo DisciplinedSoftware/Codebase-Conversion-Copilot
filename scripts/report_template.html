@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bentley Systems — BLAS Performance &amp; Accuracy Report</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --navy:  #002E5D;
+      --blue:  #0071CE;
+      --orange: #F58220;
+      --sky:   #00AEEF;
+      --light: #F0F4F8;
+      --white: #FFFFFF;
+      --grey:  #6B7280;
+      --pass:  #16A34A;
+      --fail:  #DC2626;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: var(--light);
+      color: #1F2937;
+      line-height: 1.6;
+    }
+
+    header {
+      background: var(--navy);
+      color: var(--white);
+      padding: 1.5rem 2rem;
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+
+    header .logo-box {
+      width: 48px; height: 48px;
+      background: var(--orange);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.5rem; font-weight: 900; color: var(--white);
+    }
+
+    header h1 {
+      font-size: 1.4rem;
+      font-weight: 700;
+    }
+
+    header p {
+      font-size: 0.85rem;
+      color: var(--sky);
+      margin-top: 0.2rem;
+    }
+
+    main {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem;
+    }
+
+    h2 {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--navy);
+      margin: 2rem 0 1rem;
+      padding-bottom: 0.4rem;
+      border-bottom: 3px solid var(--blue);
+    }
+
+    h3 {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--navy);
+      margin: 1.5rem 0 0.5rem;
+    }
+
+    /* ── Tables ────────────────────────────────────────────────── */
+    .table-wrap { overflow-x: auto; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.1); }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--white);
+      font-size: 0.88rem;
+    }
+
+    th {
+      background: var(--navy);
+      color: var(--white);
+      padding: 0.6rem 1rem;
+      text-align: left;
+      white-space: nowrap;
+    }
+
+    td {
+      padding: 0.5rem 1rem;
+      border-bottom: 1px solid #E5E7EB;
+      white-space: nowrap;
+    }
+
+    tr:hover td { background: #F8FAFC; }
+
+    .pass { color: var(--pass); font-weight: 700; }
+    .fail { color: var(--fail); font-weight: 700; }
+
+    .speedup-good { color: var(--pass); }
+    .speedup-bad  { color: var(--fail); }
+    .speedup-ok   { color: var(--orange); }
+
+    /* ── Charts ────────────────────────────────────────────────── */
+    .chart-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+      gap: 1.5rem;
+      margin-top: 1rem;
+    }
+
+    .chart-card {
+      background: var(--white);
+      border-radius: 10px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+      padding: 1rem 1.2rem 0.8rem;
+    }
+
+    .chart-card h4 {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: var(--navy);
+      margin-bottom: 0.5rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .chart-card canvas { width: 100% !important; height: 220px !important; }
+
+    /* ── Summary badges ──────────────────────────────────────────── */
+    .summary-bar {
+      display: flex;
+      gap: 1.5rem;
+      flex-wrap: wrap;
+      margin-bottom: 1.5rem;
+    }
+
+    .badge {
+      background: var(--white);
+      border-radius: 8px;
+      padding: 0.8rem 1.4rem;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+      text-align: center;
+      min-width: 120px;
+    }
+
+    .badge .val {
+      font-size: 1.8rem;
+      font-weight: 800;
+      line-height: 1;
+    }
+
+    .badge .lbl {
+      font-size: 0.75rem;
+      color: var(--grey);
+      margin-top: 0.2rem;
+    }
+
+    .badge.pass-badge .val { color: var(--pass); }
+    .badge.fail-badge .val { color: var(--fail); }
+    .badge.blue-badge .val { color: var(--blue); }
+
+    footer {
+      text-align: center;
+      padding: 2rem;
+      font-size: 0.8rem;
+      color: var(--grey);
+      border-top: 1px solid #E5E7EB;
+      margin-top: 3rem;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo-box">B</div>
+  <div>
+    <h1>Bentley Systems — BLAS Performance &amp; Accuracy Report</h1>
+    <p>Fortran BLAS 3.12.0 → Rust port &nbsp;|&nbsp; Levels 1, 2, 3 &nbsp;|&nbsp; f32 &amp; f64</p>
+  </div>
+</header>
+
+<main>
+
+  {% set total = accuracy_rows | length %}
+  {% set passed = accuracy_rows | selectattr("passed") | list | length %}
+  {% set failed = total - passed %}
+
+  <div class="summary-bar">
+    <div class="badge blue-badge">
+      <div class="val">{{ total }}</div>
+      <div class="lbl">Routines Tested</div>
+    </div>
+    <div class="badge pass-badge">
+      <div class="val">{{ passed }}</div>
+      <div class="lbl">Passed</div>
+    </div>
+    {% if failed > 0 %}
+    <div class="badge fail-badge">
+      <div class="val">{{ failed }}</div>
+      <div class="lbl">Failed</div>
+    </div>
+    {% endif %}
+    <div class="badge blue-badge">
+      <div class="val">{{ bench_rows | selectattr("source", "equalto", "fortran") | list | length }}</div>
+      <div class="lbl">Fortran Bench Points</div>
+    </div>
+    <div class="badge blue-badge">
+      <div class="val">{{ bench_rows | selectattr("source", "equalto", "rust") | list | length }}</div>
+      <div class="lbl">Rust Bench Points</div>
+    </div>
+  </div>
+
+  <!-- ── Section 1: Accuracy ──────────────────────────────────── -->
+  <h2>§1 — Accuracy (vs. reference Fortran BLAS)</h2>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Routine</th>
+          <th>Precision</th>
+          <th>N</th>
+          <th>Max Relative Error</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in accuracy_rows %}
+        <tr>
+          <td><strong>{{ r.routine }}</strong></td>
+          <td>{{ r.precision }}</td>
+          <td>{{ r.n }}</td>
+          <td>{{ "%.3e" | format(r.max_rel_error) }}</td>
+          <td>
+            {% if r.passed %}
+              <span class="pass">✓ PASS</span>
+            {% else %}
+              <span class="fail">✗ FAIL</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ── Section 2: Performance Charts ───────────────────────── -->
+  <h2>§2 — Performance (Fortran vs. Rust, mean ns/op)</h2>
+
+  {% set routines_with_both = [] %}
+  {% for routine, cdata in chart_data.items() %}
+    {% if cdata.fortran | select | list | length > 0 and cdata.rust | select | list | length > 0 %}
+      {% set _ = routines_with_both.append(routine) %}
+    {% endif %}
+  {% endfor %}
+
+  <div class="chart-grid">
+    {% for routine, cdata in chart_data.items() %}
+    <div class="chart-card">
+      <h4>{{ routine }}</h4>
+      <canvas id="chart_{{ routine | replace('/', '_') }}"></canvas>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- ── Section 3: Speedup Table ─────────────────────────────── -->
+  <h2>§3 — Speedup Ratio (Rust / Fortran, lower = Rust faster)</h2>
+  {% if speedup_rows %}
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Routine</th>
+          <th>N</th>
+          <th>Fortran (ns)</th>
+          <th>Rust (ns)</th>
+          <th>Speedup (Rust/Fortran)</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in speedup_rows %}
+        <tr>
+          <td><strong>{{ r.routine }}</strong></td>
+          <td>{{ r.n }}</td>
+          <td>{{ "{:,.1f}".format(r.fortran_ns) }}</td>
+          <td>{{ "{:,.1f}".format(r.rust_ns) }}</td>
+          <td>
+            {% set sp = r.speedup %}
+            {% if sp <= 1.1 %}
+              <span class="speedup-good">{{ "%.3f" | format(sp) }}× ▲ Rust faster</span>
+            {% elif sp <= 3.0 %}
+              <span class="speedup-ok">{{ "%.3f" | format(sp) }}×</span>
+            {% else %}
+              <span class="speedup-bad">{{ "%.3f" | format(sp) }}× ▼ Rust slower</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p style="color: var(--grey); padding: 1rem;">No benchmark data available for comparison.</p>
+  {% endif %}
+
+</main>
+
+<footer>
+  Generated by Bentley Systems BLAS Conversion Copilot &nbsp;·&nbsp;
+  BLAS 3.12.0 (Fortran) → Rust &nbsp;·&nbsp;
+  <a href="https://www.bentley.com" style="color: var(--blue);">bentley.com</a>
+</footer>
+
+<script>
+// ── Chart.js initialization ──────────────────────────────────────────────
+const NAVY   = '#002E5D';
+const BLUE   = '#0071CE';
+const ORANGE = '#F58220';
+const SKY    = '#00AEEF';
+
+const chartData = {{ chart_data | tojson }};
+
+function makeBarChart(canvasId, cdata) {
+  const ctx = document.getElementById(canvasId);
+  if (!ctx) return;
+
+  const datasets = [];
+  if (cdata.fortran && cdata.fortran.some(v => v !== null)) {
+    datasets.push({
+      label: 'Fortran',
+      data: cdata.fortran,
+      backgroundColor: BLUE,
+      borderColor: NAVY,
+      borderWidth: 1,
+    });
+  }
+  if (cdata.rust && cdata.rust.some(v => v !== null)) {
+    datasets.push({
+      label: 'Rust',
+      data: cdata.rust,
+      backgroundColor: ORANGE,
+      borderColor: '#C0611A',
+      borderWidth: 1,
+    });
+  }
+
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: cdata.labels,
+      datasets: datasets,
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'top', labels: { font: { size: 11 } } },
+        tooltip: {
+          callbacks: {
+            label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y.toLocaleString(undefined, {maximumFractionDigits:1})} ns`,
+          },
+        },
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          title: { display: true, text: 'ns / op', font: { size: 11 } },
+          ticks: { font: { size: 10 } },
+        },
+        x: { ticks: { font: { size: 11 } } },
+      },
+    },
+  });
+}
+
+for (const [routine, cdata] of Object.entries(chartData)) {
+  const canvasId = 'chart_' + routine.replace(/\//g, '_');
+  makeBarChart(canvasId, cdata);
+}
+</script>
+</body>
+</html>
