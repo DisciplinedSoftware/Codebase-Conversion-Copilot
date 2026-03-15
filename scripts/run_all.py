@@ -177,24 +177,150 @@ def run_rust_bench():
 
 # ── Step 4: Generate report ────────────────────────────────────────────────
 
-def build_chart_data(bench_df):
-    """Build chart_data dict: routine -> {labels, fortran, rust}"""
-    chart_data = {}
-    if bench_df.empty:
-        return chart_data
+_NAVY   = "#002E5D"
+_BLUE   = "#0071CE"
+_ORANGE = "#F58220"
+_GREY   = "#6B7280"
+_LGREY  = "#E5E7EB"
+_TEXT   = "#1F2937"
 
-    # Use f64 precision only for charts
+
+def _fmt_ns(v):
+    """Format nanoseconds for SVG axis labels."""
+    if v >= 1_000_000_000:
+        return f"{v/1_000_000_000:.1f}s"
+    if v >= 1_000_000:
+        return f"{v/1_000_000:.1f}ms"
+    if v >= 1_000:
+        return f"{v/1_000:.1f}µs"
+    return f"{v:.0f}ns"
+
+
+def make_svg_chart(labels, fortran_vals, rust_vals, width=340, height=230):
+    """Generate a self-contained SVG grouped bar chart (no JS required)."""
+    ML, MR, MT, MB = 68, 10, 12, 50   # margins: left, right, top, bottom
+    cw = width - ML - MR              # chart area width
+    ch = height - MT - MB             # chart area height
+
+    all_vals = [v for v in (list(fortran_vals) + list(rust_vals))
+                if v is not None and v > 0]
+    if not all_vals:
+        return (f'<svg viewBox="0 0 {width} {height}" '
+                f'xmlns="http://www.w3.org/2000/svg" '
+                f'style="width:100%;height:100%">'
+                f'<text x="{width//2}" y="{height//2}" text-anchor="middle" '
+                f'fill="{_GREY}" font-size="12">No data</text></svg>')
+
+    max_val = max(all_vals)
+    # Round max_val up to a "nice" number
+    import math
+    exp = 10 ** math.floor(math.log10(max_val))
+    max_val = math.ceil(max_val / exp) * exp
+
+    n_groups = len(labels)
+    group_w = cw / n_groups
+    bar_w = group_w * 0.32
+    gap   = group_w * 0.04
+
+    parts = [
+        f'<svg viewBox="0 0 {width} {height}" xmlns="http://www.w3.org/2000/svg" '
+        f'style="width:100%;height:100%;font-family:\'Segoe UI\',Arial,sans-serif">',
+    ]
+
+    # Grid lines + Y-axis ticks (5 levels)
+    n_ticks = 4
+    for i in range(n_ticks + 1):
+        y = MT + ch - ch * i / n_ticks
+        val = max_val * i / n_ticks
+        # gridline
+        if i > 0:
+            parts.append(
+                f'<line x1="{ML}" y1="{y:.1f}" x2="{ML+cw}" y2="{y:.1f}" '
+                f'stroke="{_LGREY}" stroke-width="0.8" stroke-dasharray="4,3"/>'
+            )
+        # tick label
+        parts.append(
+            f'<text x="{ML-5}" y="{y+3.5:.1f}" text-anchor="end" '
+            f'font-size="9" fill="{_GREY}">{_fmt_ns(val)}</text>'
+        )
+
+    # Axes
+    parts.append(
+        f'<line x1="{ML}" y1="{MT}" x2="{ML}" y2="{MT+ch}" '
+        f'stroke="{_NAVY}" stroke-width="1.5"/>'
+    )
+    parts.append(
+        f'<line x1="{ML}" y1="{MT+ch}" x2="{ML+cw}" y2="{MT+ch}" '
+        f'stroke="{_NAVY}" stroke-width="1.5"/>'
+    )
+
+    # Bars + x-labels
+    for gi, (label, fv, rv) in enumerate(zip(labels, fortran_vals, rust_vals)):
+        cx = ML + gi * group_w + group_w / 2
+
+        # Fortran bar
+        if fv is not None and fv > 0:
+            bh = ch * min(fv, max_val) / max_val
+            bx = cx - bar_w - gap / 2
+            by = MT + ch - bh
+            parts.append(
+                f'<rect x="{bx:.1f}" y="{by:.1f}" width="{bar_w:.1f}" '
+                f'height="{bh:.1f}" fill="{_BLUE}" rx="2">'
+                f'<title>Fortran {label}: {_fmt_ns(fv)}</title></rect>'
+            )
+
+        # Rust bar
+        if rv is not None and rv > 0:
+            bh = ch * min(rv, max_val) / max_val
+            bx = cx + gap / 2
+            by = MT + ch - bh
+            parts.append(
+                f'<rect x="{bx:.1f}" y="{by:.1f}" width="{bar_w:.1f}" '
+                f'height="{bh:.1f}" fill="{_ORANGE}" rx="2">'
+                f'<title>Rust {label}: {_fmt_ns(rv)}</title></rect>'
+            )
+
+        # x-axis label (may need wrapping for large n)
+        lbl_text = label if len(label) <= 12 else label.replace("n=", "")
+        parts.append(
+            f'<text x="{cx:.1f}" y="{MT+ch+13}" text-anchor="middle" '
+            f'font-size="9" fill="{_TEXT}">{lbl_text}</text>'
+        )
+
+    # Legend
+    lx, ly = ML + 4, height - 10
+    parts += [
+        f'<rect x="{lx}" y="{ly-8}" width="10" height="10" fill="{_BLUE}" rx="2"/>',
+        f'<text x="{lx+13}" y="{ly}" font-size="10" fill="{_TEXT}">Fortran</text>',
+        f'<rect x="{lx+63}" y="{ly-8}" width="10" height="10" fill="{_ORANGE}" rx="2"/>',
+        f'<text x="{lx+76}" y="{ly}" font-size="10" fill="{_TEXT}">Rust</text>',
+    ]
+
+    parts.append("</svg>")
+    return "\n".join(parts)
+
+
+def build_svg_charts(bench_df):
+    """Build dict: routine -> SVG string (f64 only, only paired routines)."""
+    svg_charts = {}
+    if bench_df.empty:
+        return svg_charts
+
     df64 = bench_df[bench_df["precision"] == "f64"].copy()
     routines = sorted(df64["routine"].unique())
-    # Only include routines that have both Fortran and Rust data
     paired = [r for r in routines
               if not df64[(df64["routine"] == r) & (df64["source"] == "fortran")].empty
               and not df64[(df64["routine"] == r) & (df64["source"] == "rust")].empty]
 
     for routine in paired:
         rdf = df64[df64["routine"] == routine]
-        sizes = sorted(rdf["n"].unique())
-        labels = [f"n={n}" for n in sizes]
+        # Only keep sizes present in BOTH sources
+        f_ns = set(df64[(df64["routine"] == routine) & (df64["source"] == "fortran")]["n"].tolist())
+        r_ns = set(df64[(df64["routine"] == routine) & (df64["source"] == "rust")]["n"].tolist())
+        sizes = sorted(f_ns & r_ns)
+        if not sizes:
+            continue
+        labels = [f"n={n:,}" for n in sizes]
         fortran_vals = []
         rust_vals = []
         for n in sizes:
@@ -202,21 +328,26 @@ def build_chart_data(bench_df):
             r_row = rdf[(rdf["source"] == "rust") & (rdf["n"] == n)]
             fortran_vals.append(round(float(f_row["mean_ns"].values[0]), 1) if not f_row.empty else None)
             rust_vals.append(round(float(r_row["mean_ns"].values[0]), 1) if not r_row.empty else None)
-        chart_data[routine] = {
-            "labels": labels,
-            "fortran": fortran_vals,
-            "rust": rust_vals,
-        }
-    return chart_data
+        svg_charts[routine] = make_svg_chart(labels, fortran_vals, rust_vals)
+
+    return svg_charts
 
 
 def build_accuracy_lookup(accuracy_rows):
-    """Build dict keyed by (routine, precision, n) → accuracy entry."""
-    lookup = {}
+    """Build exact + fallback accuracy lookups.
+
+    Returns:
+        exact:    (routine, precision, n) -> row
+        fallback: (routine, precision)    -> best row (highest tested n)
+    """
+    exact, fallback = {}, {}
     for r in accuracy_rows:
         key = (r["routine"], r["precision"], int(r["n"]))
-        lookup[key] = r
-    return lookup
+        exact[key] = r
+        fb_key = (r["routine"], r["precision"])
+        if fb_key not in fallback or int(r["n"]) > int(fallback[fb_key]["n"]):
+            fallback[fb_key] = r
+    return exact, fallback
 
 
 def build_speedup_rows(bench_df, accuracy_lookup=None):
@@ -224,8 +355,7 @@ def build_speedup_rows(bench_df, accuracy_lookup=None):
     rows = []
     if bench_df.empty:
         return rows
-    if accuracy_lookup is None:
-        accuracy_lookup = {}
+    exact_lookup, fallback_lookup = accuracy_lookup if accuracy_lookup else ({}, {})
     df64 = bench_df[bench_df["precision"] == "f64"].copy()
     routines = sorted(df64["routine"].unique())
     sizes = sorted(df64["n"].unique())
@@ -238,15 +368,15 @@ def build_speedup_rows(bench_df, accuracy_lookup=None):
             f_ns = float(f_row["mean_ns"].values[0])
             r_ns = float(r_row["mean_ns"].values[0])
             speedup = r_ns / f_ns if f_ns > 0 else float("inf")
-            # Accuracy for f64 at this (routine, n)
-            acc = accuracy_lookup.get((routine, "f64", int(n)))
+            # Accuracy: exact match first, then fallback to best tested n
+            acc = (exact_lookup.get((routine, "f64", int(n)))
+                   or fallback_lookup.get((routine, "f64")))
             rows.append({
                 "routine": routine,
                 "n": n,
                 "fortran_ns": round(f_ns, 1),
                 "rust_ns": round(r_ns, 1),
                 "speedup": round(speedup, 3),
-                # accuracy fields (None when not available)
                 "max_rel_error": acc["max_rel_error"] if acc else None,
                 "threshold": acc["threshold"] if acc else None,
                 "acc_passed": acc["passed"] if acc else None,
@@ -259,8 +389,7 @@ def build_speedup_rows_f32(bench_df, accuracy_lookup=None):
     rows = []
     if bench_df.empty:
         return rows
-    if accuracy_lookup is None:
-        accuracy_lookup = {}
+    exact_lookup, fallback_lookup = accuracy_lookup if accuracy_lookup else ({}, {})
     df32 = bench_df[bench_df["precision"] == "f32"].copy()
     routines = sorted(df32["routine"].unique())
     sizes = sorted(df32["n"].unique())
@@ -273,7 +402,8 @@ def build_speedup_rows_f32(bench_df, accuracy_lookup=None):
             f_ns = float(f_row["mean_ns"].values[0])
             r_ns = float(r_row["mean_ns"].values[0])
             speedup = r_ns / f_ns if f_ns > 0 else float("inf")
-            acc = accuracy_lookup.get((routine, "f32", int(n)))
+            acc = (exact_lookup.get((routine, "f32", int(n)))
+                   or fallback_lookup.get((routine, "f32")))
             rows.append({
                 "routine": routine,
                 "n": n,
@@ -289,8 +419,9 @@ def build_speedup_rows_f32(bench_df, accuracy_lookup=None):
 
 def generate_report(accuracy_rows, bench_df):
     print("\n[4/4] Generating HTML report...")
-    accuracy_lookup = build_accuracy_lookup(accuracy_rows)
-    chart_data = build_chart_data(bench_df)
+    exact_lookup, fallback_lookup = build_accuracy_lookup(accuracy_rows)
+    accuracy_lookup = (exact_lookup, fallback_lookup)
+    svg_charts = build_svg_charts(bench_df)
     speedup_rows = build_speedup_rows(bench_df, accuracy_lookup)
     speedup_rows_f32 = build_speedup_rows_f32(bench_df, accuracy_lookup)
     bench_rows = bench_df.to_dict("records") if not bench_df.empty else []
@@ -305,7 +436,7 @@ def generate_report(accuracy_rows, bench_df):
     html = template.render(
         accuracy_rows=accuracy_rows,
         bench_rows=bench_rows,
-        chart_data=chart_data,
+        svg_charts=svg_charts,
         speedup_rows=speedup_rows,
         speedup_rows_f32=speedup_rows_f32,
         n_acc_total=n_acc_total,
