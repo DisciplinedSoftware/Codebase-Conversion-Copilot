@@ -2,6 +2,8 @@ use crate::types::{BlasFloat, Diag, Trans, Uplo};
 
 /// General matrix-vector multiply: y = alpha*op(A)*x + beta*y
 /// Column-major storage: A[col * lda + row]
+#[allow(clippy::too_many_arguments)]
+#[inline]
 pub fn gemv<T: BlasFloat>(
     trans: Trans,
     m: usize,
@@ -18,7 +20,7 @@ pub fn gemv<T: BlasFloat>(
     let leny = if trans == Trans::No { m } else { n };
     let mut iy = 0;
     for _ in 0..leny {
-        y[iy] = beta * y[iy];
+        y[iy] *= beta;
         iy += incy;
     }
     if alpha == T::zero() {
@@ -38,7 +40,7 @@ pub fn gemv<T: BlasFloat>(
                 jx += incx;
             }
         }
-        _ => {
+        Trans::Yes | Trans::Conj => {
             // y(j) += alpha * sum_i A(i,j)*x(i), A(i,j) = a[j*lda+i]
             let mut jy = 0;
             for j in 0..n {
@@ -57,6 +59,8 @@ pub fn gemv<T: BlasFloat>(
 
 /// Banded matrix-vector multiply
 /// Band storage: a[j*lda + (ku+i-j)] for element (row i, col j), valid when max(0,j-ku)<=i<=min(m-1,j+kl)
+#[allow(clippy::too_many_arguments)]
+#[inline]
 pub fn gbmv<T: BlasFloat>(
     trans: Trans,
     m: usize,
@@ -75,7 +79,7 @@ pub fn gbmv<T: BlasFloat>(
     let leny = if trans == Trans::No { m } else { n };
     let mut iy = 0;
     for _ in 0..leny {
-        y[iy] = beta * y[iy];
+        y[iy] *= beta;
         iy += incy;
     }
     if alpha == T::zero() {
@@ -86,7 +90,7 @@ pub fn gbmv<T: BlasFloat>(
             let mut jx = 0;
             for j in 0..n {
                 let xj = alpha * x[jx];
-                let i_min = if j >= ku { j - ku } else { 0 };
+                let i_min = j.saturating_sub(ku);
                 let i_max = (j + kl).min(m - 1);
                 let mut iy2 = i_min * incy;
                 for i in i_min..=i_max {
@@ -96,11 +100,11 @@ pub fn gbmv<T: BlasFloat>(
                 jx += incx;
             }
         }
-        _ => {
+        Trans::Yes | Trans::Conj => {
             let mut ix = 0;
             for i in 0..m {
                 let xi = alpha * x[ix];
-                let j_min = if i >= kl { i - kl } else { 0 };
+                let j_min = i.saturating_sub(kl);
                 let j_max = (i + ku).min(n - 1);
                 let mut jy = j_min * incy;
                 for j in j_min..=j_max {
@@ -114,6 +118,8 @@ pub fn gbmv<T: BlasFloat>(
 }
 
 /// Symmetric matrix-vector: y = alpha*A*x + beta*y, A symmetric n×n
+#[allow(clippy::too_many_arguments)]
+#[inline]
 pub fn symv<T: BlasFloat>(
     uplo: Uplo,
     n: usize,
@@ -128,7 +134,7 @@ pub fn symv<T: BlasFloat>(
 ) {
     let mut iy = 0;
     for _ in 0..n {
-        y[iy] = beta * y[iy];
+        y[iy] *= beta;
         iy += incy;
     }
     if alpha == T::zero() {
@@ -182,6 +188,8 @@ pub fn symv<T: BlasFloat>(
 /// Symmetric banded matrix-vector
 /// Upper band storage: a[j*lda + (k+i-j)] for i<=j, i>=j-k (k superdiagonals)
 /// Lower band storage: a[j*lda + (i-j)] for i>=j, i<=j+k
+#[allow(clippy::too_many_arguments)]
+#[inline]
 pub fn sbmv<T: BlasFloat>(
     uplo: Uplo,
     n: usize,
@@ -197,7 +205,7 @@ pub fn sbmv<T: BlasFloat>(
 ) {
     let mut iy = 0;
     for _ in 0..n {
-        y[iy] = beta * y[iy];
+        y[iy] *= beta;
         iy += incy;
     }
     if alpha == T::zero() {
@@ -210,7 +218,7 @@ pub fn sbmv<T: BlasFloat>(
             for j in 0..n {
                 // diagonal stored at row index k
                 let mut sum = a[j * lda + k] * x[jx];
-                let i_min = if j >= k { j - k } else { 0 };
+                let i_min = j.saturating_sub(k);
                 let mut ix2 = i_min * incx;
                 let mut iy2 = i_min * incy;
                 for i in i_min..j {
@@ -252,6 +260,8 @@ pub fn sbmv<T: BlasFloat>(
 /// Symmetric packed matrix-vector
 /// Upper: ap[j*(j+1)/2 + i] for i<=j (0-based)
 /// Lower: ap[j*(2*n-j-1)/2 + (i-j)] = ap[j*(2*n-j-1)/2 + i - j] for i>=j
+#[allow(clippy::too_many_arguments)]
+#[inline]
 pub fn spmv<T: BlasFloat>(
     uplo: Uplo,
     n: usize,
@@ -265,7 +275,7 @@ pub fn spmv<T: BlasFloat>(
 ) {
     let mut iy = 0;
     for _ in 0..n {
-        y[iy] = beta * y[iy];
+        y[iy] *= beta;
         iy += incy;
     }
     if alpha == T::zero() {
@@ -323,6 +333,8 @@ pub fn spmv<T: BlasFloat>(
 
 /// Triangular matrix-vector: x = op(A)*x
 /// Column-major: A(i,j) = a[j*lda+i]
+#[allow(clippy::too_many_arguments)]
+#[inline]
 pub fn trmv<T: BlasFloat>(
     uplo: Uplo,
     trans: Trans,
@@ -408,6 +420,8 @@ pub fn trmv<T: BlasFloat>(
 /// Triangular banded matrix-vector: x = op(A)*x
 /// Upper band: a[j*lda + (k+i-j)] for i in max(0,j-k)..=j
 /// Lower band: a[j*lda + (i-j)] for i in j..=min(n-1,j+k)
+#[allow(clippy::too_many_arguments)]
+#[inline]
 pub fn tbmv<T: BlasFloat>(
     uplo: Uplo,
     trans: Trans,
@@ -428,7 +442,7 @@ pub fn tbmv<T: BlasFloat>(
             let mut jx = 0;
             for j in 0..n {
                 let temp = x[jx];
-                let i_min = if j >= k { j - k } else { 0 };
+                let i_min = j.saturating_sub(k);
                 let mut ix = i_min * incx;
                 for i in i_min..j {
                     x[ix] += a[j * lda + k + i - j] * temp;
@@ -444,7 +458,7 @@ pub fn tbmv<T: BlasFloat>(
             let mut jx = (n - 1) * incx;
             for j in (0..n).rev() {
                 let mut temp = if nounit { a[j * lda + k] * x[jx] } else { x[jx] };
-                let i_min = if j >= k { j - k } else { 0 };
+                let i_min = j.saturating_sub(k);
                 let mut ix = i_min * incx;
                 for i in i_min..j {
                     temp += a[j * lda + k + i - j] * x[ix];
@@ -494,6 +508,8 @@ pub fn tbmv<T: BlasFloat>(
 /// Triangular packed matrix-vector: x = op(A)*x
 /// Upper: ap[j*(j+1)/2 + i] for i<=j
 /// Lower: ap[col_start_j + (i-j)] where col_start_j = j*n - j*(j-1)/2
+#[allow(clippy::too_many_arguments)]
+#[inline]
 pub fn tpmv<T: BlasFloat>(
     uplo: Uplo,
     trans: Trans,
@@ -576,6 +592,8 @@ pub fn tpmv<T: BlasFloat>(
 
 /// Triangular solve: x = op(A)^{-1} * x
 /// Column-major: A(i,j) = a[j*lda+i]
+#[allow(clippy::too_many_arguments)]
+#[inline]
 pub fn trsv<T: BlasFloat>(
     uplo: Uplo,
     trans: Trans,
@@ -603,9 +621,9 @@ pub fn trsv<T: BlasFloat>(
                     sum += a[c * lda + r] * x[cx];
                     cx += incx;
                 }
-                x[rx] = x[rx] - sum;
+                x[rx] -= sum;
                 if nounit {
-                    x[rx] = x[rx] / a[r * lda + r];
+                    x[rx] /= a[r * lda + r];
                 }
                 if r > 0 {
                     rx -= incx;
@@ -624,9 +642,9 @@ pub fn trsv<T: BlasFloat>(
                     sum += a[r * lda + c] * x[cx];
                     cx += incx;
                 }
-                x[rx] = x[rx] - sum;
+                x[rx] -= sum;
                 if nounit {
-                    x[rx] = x[rx] / a[r * lda + r];
+                    x[rx] /= a[r * lda + r];
                 }
                 rx += incx;
             }
@@ -643,9 +661,9 @@ pub fn trsv<T: BlasFloat>(
                     sum += a[c * lda + r] * x[cx];
                     cx += incx;
                 }
-                x[rx] = x[rx] - sum;
+                x[rx] -= sum;
                 if nounit {
-                    x[rx] = x[rx] / a[r * lda + r];
+                    x[rx] /= a[r * lda + r];
                 }
                 rx += incx;
             }
@@ -662,9 +680,9 @@ pub fn trsv<T: BlasFloat>(
                     sum += a[r * lda + c] * x[cx];
                     cx += incx;
                 }
-                x[rx] = x[rx] - sum;
+                x[rx] -= sum;
                 if nounit {
-                    x[rx] = x[rx] / a[r * lda + r];
+                    x[rx] /= a[r * lda + r];
                 }
                 if r > 0 {
                     rx -= incx;
@@ -675,6 +693,8 @@ pub fn trsv<T: BlasFloat>(
 }
 
 /// Triangular banded solve: x = op(A)^{-1} * x
+#[allow(clippy::too_many_arguments)]
+#[inline]
 pub fn tbsv<T: BlasFloat>(
     uplo: Uplo,
     trans: Trans,
@@ -702,9 +722,9 @@ pub fn tbsv<T: BlasFloat>(
                     sum += a[c * lda + k + r - c] * x[cx];
                     cx += incx;
                 }
-                x[rx] = x[rx] - sum;
+                x[rx] -= sum;
                 if nounit {
-                    x[rx] = x[rx] / a[r * lda + k];
+                    x[rx] /= a[r * lda + k];
                 }
                 if r > 0 {
                     rx -= incx;
@@ -714,16 +734,16 @@ pub fn tbsv<T: BlasFloat>(
         (Uplo::Upper, _) => {
             let mut rx = 0;
             for r in 0..n {
-                let c_min = if r >= k { r - k } else { 0 };
+                let c_min = r.saturating_sub(k);
                 let mut sum = T::zero();
                 let mut cx = c_min * incx;
                 for c in c_min..r {
                     sum += a[r * lda + k + c - r] * x[cx];
                     cx += incx;
                 }
-                x[rx] = x[rx] - sum;
+                x[rx] -= sum;
                 if nounit {
-                    x[rx] = x[rx] / a[r * lda + k];
+                    x[rx] /= a[r * lda + k];
                 }
                 rx += incx;
             }
@@ -731,16 +751,16 @@ pub fn tbsv<T: BlasFloat>(
         (Uplo::Lower, Trans::No) => {
             let mut rx = 0;
             for r in 0..n {
-                let c_min = if r >= k { r - k } else { 0 };
+                let c_min = r.saturating_sub(k);
                 let mut sum = T::zero();
                 let mut cx = c_min * incx;
                 for c in c_min..r {
                     sum += a[c * lda + (r - c)] * x[cx];
                     cx += incx;
                 }
-                x[rx] = x[rx] - sum;
+                x[rx] -= sum;
                 if nounit {
-                    x[rx] = x[rx] / a[r * lda];
+                    x[rx] /= a[r * lda];
                 }
                 rx += incx;
             }
@@ -755,9 +775,9 @@ pub fn tbsv<T: BlasFloat>(
                     sum += a[r * lda + (c - r)] * x[cx];
                     cx += incx;
                 }
-                x[rx] = x[rx] - sum;
+                x[rx] -= sum;
                 if nounit {
-                    x[rx] = x[rx] / a[r * lda];
+                    x[rx] /= a[r * lda];
                 }
                 if r > 0 {
                     rx -= incx;
@@ -768,6 +788,8 @@ pub fn tbsv<T: BlasFloat>(
 }
 
 /// Triangular packed solve: x = op(A)^{-1} * x
+#[allow(clippy::too_many_arguments)]
+#[inline]
 pub fn tpsv<T: BlasFloat>(
     uplo: Uplo,
     trans: Trans,
@@ -791,9 +813,9 @@ pub fn tpsv<T: BlasFloat>(
                     sum += ap[c * (c + 1) / 2 + r] * x[cx];
                     cx += incx;
                 }
-                x[rx] = x[rx] - sum;
+                x[rx] -= sum;
                 if nounit {
-                    x[rx] = x[rx] / ap[r * (r + 1) / 2 + r];
+                    x[rx] /= ap[r * (r + 1) / 2 + r];
                 }
                 if r > 0 {
                     rx -= incx;
@@ -809,9 +831,9 @@ pub fn tpsv<T: BlasFloat>(
                     sum += ap[r * (r + 1) / 2 + c] * x[cx];
                     cx += incx;
                 }
-                x[rx] = x[rx] - sum;
+                x[rx] -= sum;
                 if nounit {
-                    x[rx] = x[rx] / ap[r * (r + 1) / 2 + r];
+                    x[rx] /= ap[r * (r + 1) / 2 + r];
                 }
                 rx += incx;
             }
@@ -827,9 +849,9 @@ pub fn tpsv<T: BlasFloat>(
                     sum += ap[cs_c + (r - c)] * x[cx];
                     cx += incx;
                 }
-                x[rx] = x[rx] - sum;
+                x[rx] -= sum;
                 if nounit {
-                    x[rx] = x[rx] / ap[col_start_r];
+                    x[rx] /= ap[col_start_r];
                 }
                 rx += incx;
             }
@@ -845,9 +867,9 @@ pub fn tpsv<T: BlasFloat>(
                     sum += ap[cs_r + (c - r)] * x[cx];
                     cx += incx;
                 }
-                x[rx] = x[rx] - sum;
+                x[rx] -= sum;
                 if nounit {
-                    x[rx] = x[rx] / ap[col_start_r];
+                    x[rx] /= ap[col_start_r];
                 }
                 if r > 0 {
                     rx -= incx;
@@ -858,6 +880,8 @@ pub fn tpsv<T: BlasFloat>(
 }
 
 /// Rank-1 update: A = alpha*x*y^T + A
+#[allow(clippy::too_many_arguments)]
+#[inline]
 pub fn ger<T: BlasFloat>(
     m: usize,
     n: usize,
@@ -885,6 +909,7 @@ pub fn ger<T: BlasFloat>(
 }
 
 /// Symmetric rank-1 update: A = alpha*x*x^T + A
+#[inline]
 pub fn syr<T: BlasFloat>(
     uplo: Uplo,
     n: usize,
@@ -926,6 +951,7 @@ pub fn syr<T: BlasFloat>(
 }
 
 /// Symmetric packed rank-1 update: A = alpha*x*x^T + A
+#[inline]
 pub fn spr<T: BlasFloat>(
     uplo: Uplo,
     n: usize,
@@ -967,6 +993,8 @@ pub fn spr<T: BlasFloat>(
 }
 
 /// Symmetric rank-2 update: A = alpha*x*y^T + alpha*y*x^T + A
+#[allow(clippy::too_many_arguments)]
+#[inline]
 pub fn syr2<T: BlasFloat>(
     uplo: Uplo,
     n: usize,
@@ -1020,6 +1048,8 @@ pub fn syr2<T: BlasFloat>(
 }
 
 /// Symmetric packed rank-2 update: A = alpha*x*y^T + alpha*y*x^T + A
+#[allow(clippy::too_many_arguments)]
+#[inline]
 pub fn spr2<T: BlasFloat>(
     uplo: Uplo,
     n: usize,

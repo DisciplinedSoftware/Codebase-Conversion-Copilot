@@ -1,73 +1,64 @@
 use crate::types::BlasFloat;
 
 /// Sum of absolute values
+#[must_use]
+#[inline]
 pub fn asum<T: BlasFloat>(n: usize, x: &[T], incx: usize) -> T {
     if n == 0 || incx == 0 {
         return T::zero();
     }
-    let mut sum = T::zero();
-    let mut i = 0;
-    for _ in 0..n {
-        sum += x[i].abs();
-        i += incx;
-    }
-    sum
+    x.iter().step_by(incx).take(n).fold(T::zero(), |acc, &v| acc + v.abs())
 }
 
 /// y = alpha*x + y
+#[inline]
 pub fn axpy<T: BlasFloat>(n: usize, alpha: T, x: &[T], incx: usize, y: &mut [T], incy: usize) {
     if n == 0 {
         return;
     }
-    let mut ix = 0;
-    let mut iy = 0;
-    for _ in 0..n {
-        y[iy] += alpha * x[ix];
-        ix += incx;
-        iy += incy;
+    let xs = x.iter().step_by(incx).take(n);
+    let ys = y.iter_mut().step_by(incy).take(n);
+    for (&xi, yi) in xs.zip(ys) {
+        *yi += alpha * xi;
     }
 }
 
 /// Copy x into y
+#[inline]
 pub fn copy<T: BlasFloat>(n: usize, x: &[T], incx: usize, y: &mut [T], incy: usize) {
     if n == 0 {
         return;
     }
-    let mut ix = 0;
-    let mut iy = 0;
-    for _ in 0..n {
-        y[iy] = x[ix];
-        ix += incx;
-        iy += incy;
+    let xs = x.iter().step_by(incx).take(n);
+    let ys = y.iter_mut().step_by(incy).take(n);
+    for (&xi, yi) in xs.zip(ys) {
+        *yi = xi;
     }
 }
 
 /// Dot product
+#[must_use]
+#[inline]
 pub fn dot<T: BlasFloat>(n: usize, x: &[T], incx: usize, y: &[T], incy: usize) -> T {
     if n == 0 {
         return T::zero();
     }
-    let mut sum = T::zero();
-    let mut ix = 0;
-    let mut iy = 0;
-    for _ in 0..n {
-        sum += x[ix] * y[iy];
-        ix += incx;
-        iy += incy;
-    }
-    sum
+    x.iter().step_by(incx).take(n)
+        .zip(y.iter().step_by(incy).take(n))
+        .fold(T::zero(), |acc, (&xi, &yi)| acc + xi * yi)
 }
 
 /// Euclidean norm (scaled algorithm to avoid overflow)
+#[must_use]
+#[inline]
 pub fn nrm2<T: BlasFloat>(n: usize, x: &[T], incx: usize) -> T {
     if n == 0 {
         return T::zero();
     }
     let mut scale = T::zero();
     let mut ssq = T::one();
-    let mut ix = 0;
-    for _ in 0..n {
-        let absxi = x[ix].abs();
+    for &xi in x.iter().step_by(incx).take(n) {
+        let absxi = xi.abs();
         if absxi != T::zero() {
             if scale < absxi {
                 let ratio = scale / absxi;
@@ -78,59 +69,50 @@ pub fn nrm2<T: BlasFloat>(n: usize, x: &[T], incx: usize) -> T {
                 ssq += ratio * ratio;
             }
         }
-        ix += incx;
     }
     scale * ssq.sqrt()
 }
 
 /// Scale vector by alpha
+#[inline]
 pub fn scal<T: BlasFloat>(n: usize, alpha: T, x: &mut [T], incx: usize) {
     if n == 0 {
         return;
     }
-    let mut ix = 0;
-    for _ in 0..n {
-        x[ix] *= alpha;
-        ix += incx;
-    }
+    x.iter_mut().step_by(incx).take(n).for_each(|xi| *xi *= alpha);
 }
 
 /// Swap x and y
+#[inline]
 pub fn swap<T: BlasFloat>(n: usize, x: &mut [T], incx: usize, y: &mut [T], incy: usize) {
     if n == 0 {
         return;
     }
-    let mut ix = 0;
-    let mut iy = 0;
-    for _ in 0..n {
-        let tmp = x[ix];
-        x[ix] = y[iy];
-        y[iy] = tmp;
-        ix += incx;
-        iy += incy;
+    let xs = x.iter_mut().step_by(incx).take(n);
+    let ys = y.iter_mut().step_by(incy).take(n);
+    for (xi, yi) in xs.zip(ys) {
+        std::mem::swap(xi, yi);
     }
 }
 
 /// Index of element with maximum absolute value (0-based)
+#[must_use]
+#[inline]
 pub fn amax<T: BlasFloat>(n: usize, x: &[T], incx: usize) -> usize {
     if n == 0 {
         return 0;
     }
-    let mut max_val = x[0].abs();
-    let mut max_idx = 0;
-    let mut ix = incx;
-    for i in 1..n {
-        let val = x[ix].abs();
-        if val > max_val {
-            max_val = val;
-            max_idx = i;
-        }
-        ix += incx;
-    }
-    max_idx
+    x.iter().step_by(incx).take(n)
+        .enumerate()
+        .fold((0usize, T::zero()), |(max_i, max_v), (i, &v)| {
+            let av = v.abs();
+            if av > max_v { (i, av) } else { (max_i, max_v) }
+        })
+        .0
 }
 
 /// Givens rotation construction
+#[inline]
 pub fn rotg<T: BlasFloat>(a: &mut T, b: &mut T, c: &mut T, s: &mut T) {
     let aa = a.abs();
     let ba = b.abs();
@@ -161,6 +143,7 @@ pub fn rotg<T: BlasFloat>(a: &mut T, b: &mut T, c: &mut T, s: &mut T) {
 }
 
 /// Apply Givens rotation
+#[inline]
 pub fn rot<T: BlasFloat>(
     n: usize,
     x: &mut [T],
@@ -173,25 +156,40 @@ pub fn rot<T: BlasFloat>(
     if n == 0 {
         return;
     }
-    let mut ix = 0;
-    let mut iy = 0;
-    for _ in 0..n {
-        let tmp = c * x[ix] + s * y[iy];
-        y[iy] = c * y[iy] - s * x[ix];
-        x[ix] = tmp;
-        ix += incx;
-        iy += incy;
+    let xs = x.iter_mut().step_by(incx).take(n);
+    let ys = y.iter_mut().step_by(incy).take(n);
+    for (xi, yi) in xs.zip(ys) {
+        let tmp = c * *xi + s * *yi;
+        *yi = c * *yi - s * *xi;
+        *xi = tmp;
     }
 }
 
+// Flag values for the modified Givens rotation matrix stored in param[0]:
+//  -2 → identity (H = I, param[1..4] unused)
+//  -1 → general H (all four h11,h21,h12,h22 are set in param)
+//   0 → h11=h22=1 (only h12,h21 vary)
+//   1 → h12=-1, h21=1 (only h11,h22 vary)
+const FLAG_IDENTITY: f64  = -2.0;
+const FLAG_GENERAL:  f64  = -1.0;
+const FLAG_H_OFF_DIAG: f64 = 0.0;
+const FLAG_H_DIAG: f64    =  1.0;
+
 /// Modified Givens rotation construction
+#[allow(unused_assignments)] // h11/h12/h21/h22 init is conditional by design
+#[inline]
 pub fn rotmg<T: BlasFloat>(d1: &mut T, d2: &mut T, x1: &mut T, y1: T, param: &mut [T; 5]) {
-    let gam = T::from_f64(4096.0);
-    let gamsq = T::from_f64(4096.0 * 4096.0);
+    let gam    = T::from_f64(4096.0);
+    let gamsq  = T::from_f64(4096.0 * 4096.0);
     let rgamsq = T::from_f64(1.0 / (4096.0 * 4096.0));
 
+    let flag_identity   = T::from_f64(FLAG_IDENTITY);
+    let flag_general    = T::from_f64(FLAG_GENERAL);
+    let flag_h_off_diag = T::from_f64(FLAG_H_OFF_DIAG);
+    let flag_h_diag     = T::from_f64(FLAG_H_DIAG);
+
     if *d1 < T::zero() {
-        param[0] = T::from_f64(-1.0);
+        param[0] = flag_general;
         param[1] = T::zero();
         param[2] = T::zero();
         param[3] = T::zero();
@@ -203,7 +201,7 @@ pub fn rotmg<T: BlasFloat>(d1: &mut T, d2: &mut T, x1: &mut T, y1: T, param: &mu
     }
     let p2 = *d2 * y1;
     if p2 == T::zero() {
-        param[0] = T::from_f64(-2.0);
+        param[0] = flag_identity;
         return;
     }
     let p1 = *d1 * *x1;
@@ -221,7 +219,7 @@ pub fn rotmg<T: BlasFloat>(d1: &mut T, d2: &mut T, x1: &mut T, y1: T, param: &mu
         h12 = p2 / p1;
         let u = T::one() - h12 * h21;
         if u <= T::zero() {
-            param[0] = T::from_f64(-1.0);
+            param[0] = flag_general;
             param[1] = T::zero();
             param[2] = T::zero();
             param[3] = T::zero();
@@ -231,13 +229,13 @@ pub fn rotmg<T: BlasFloat>(d1: &mut T, d2: &mut T, x1: &mut T, y1: T, param: &mu
             *x1 = T::zero();
             return;
         }
-        flag = T::zero();
-        *d1 = *d1 / u;
-        *d2 = *d2 / u;
-        *x1 = *x1 * u;
+        flag = flag_h_off_diag;
+        *d1 /= u;
+        *d2 /= u;
+        *x1 *= u;
     } else {
         if q2 < T::zero() {
-            param[0] = T::from_f64(-1.0);
+            param[0] = flag_general;
             param[1] = T::zero();
             param[2] = T::zero();
             param[3] = T::zero();
@@ -247,7 +245,7 @@ pub fn rotmg<T: BlasFloat>(d1: &mut T, d2: &mut T, x1: &mut T, y1: T, param: &mu
             *x1 = T::zero();
             return;
         }
-        flag = T::one();
+        flag = flag_h_diag;
         h11 = p1 / p2;
         h22 = *x1 / y1;
         let u = T::one() + h11 * h22;
@@ -262,55 +260,55 @@ pub fn rotmg<T: BlasFloat>(d1: &mut T, d2: &mut T, x1: &mut T, y1: T, param: &mu
 
     // Rescale to avoid overflow/underflow
     while *d1 <= rgamsq || *d1 >= gamsq {
-        if flag == T::zero() {
+        if flag == flag_h_off_diag {
             h11 = T::one();
             h22 = T::one();
-            flag = T::from_f64(-1.0);
+            flag = flag_general;
         } else {
             h12 = T::one();
             h21 = -T::one();
-            flag = T::from_f64(-1.0);
+            flag = flag_general;
         }
         if *d1 <= rgamsq {
-            *d1 = *d1 * gam * gam;
-            *x1 = *x1 / gam;
-            h11 = h11 / gam;
-            h12 = h12 / gam;
+            *d1 *= gam * gam;
+            *x1 /= gam;
+            h11 /= gam;
+            h12 /= gam;
         } else {
-            *d1 = *d1 / (gam * gam);
-            *x1 = *x1 * gam;
-            h11 = h11 * gam;
-            h12 = h12 * gam;
+            *d1 /= gam * gam;
+            *x1 *= gam;
+            h11 *= gam;
+            h12 *= gam;
         }
     }
     while *d2 <= rgamsq || *d2 >= gamsq {
-        if flag == T::zero() {
+        if flag == flag_h_off_diag {
             h11 = T::one();
             h22 = T::one();
-            flag = T::from_f64(-1.0);
+            flag = flag_general;
         } else {
             h12 = T::one();
             h21 = -T::one();
-            flag = T::from_f64(-1.0);
+            flag = flag_general;
         }
         if *d2 <= rgamsq {
-            *d2 = *d2 * gam * gam;
-            h21 = h21 / gam;
-            h22 = h22 / gam;
+            *d2 *= gam * gam;
+            h21 /= gam;
+            h22 /= gam;
         } else {
-            *d2 = *d2 / (gam * gam);
-            h21 = h21 * gam;
-            h22 = h22 * gam;
+            *d2 /= gam * gam;
+            h21 *= gam;
+            h22 *= gam;
         }
     }
 
     param[0] = flag;
-    if flag == T::from_f64(-1.0) {
+    if flag == flag_general {
         param[1] = h11;
         param[2] = h21;
         param[3] = h12;
         param[4] = h22;
-    } else if flag == T::zero() {
+    } else if flag == flag_h_off_diag {
         param[2] = h21;
         param[3] = h12;
     } else {
@@ -320,6 +318,7 @@ pub fn rotmg<T: BlasFloat>(d1: &mut T, d2: &mut T, x1: &mut T, y1: T, param: &mu
 }
 
 /// Apply modified Givens rotation
+#[inline]
 pub fn rotm<T: BlasFloat>(
     n: usize,
     x: &mut [T],
@@ -329,62 +328,47 @@ pub fn rotm<T: BlasFloat>(
     param: &[T; 5],
 ) {
     let flag = param[0];
-    if n == 0 || flag == T::from_f64(-2.0) {
+    if n == 0 || flag == T::from_f64(FLAG_IDENTITY) {
         return;
     }
-    let h11 = param[1];
-    let h21 = param[2];
-    let h12 = param[3];
-    let h22 = param[4];
-    let mut ix = 0;
-    let mut iy = 0;
-    if flag == T::from_f64(-1.0) {
-        for _ in 0..n {
-            let w = x[ix];
-            let z = y[iy];
-            x[ix] = w * h11 + z * h12;
-            y[iy] = w * h21 + z * h22;
-            ix += incx;
-            iy += incy;
+    let (h11, h21, h12, h22) = (param[1], param[2], param[3], param[4]);
+
+    if flag == T::from_f64(FLAG_GENERAL) {
+        for (xi, yi) in x.iter_mut().step_by(incx).take(n).zip(y.iter_mut().step_by(incy).take(n)) {
+            let (w, z) = (*xi, *yi);
+            *xi = w * h11 + z * h12;
+            *yi = w * h21 + z * h22;
         }
-    } else if flag == T::zero() {
-        for _ in 0..n {
-            let w = x[ix];
-            let z = y[iy];
-            x[ix] = w + z * h12;
-            y[iy] = w * h21 + z;
-            ix += incx;
-            iy += incy;
+    } else if flag == T::from_f64(FLAG_H_OFF_DIAG) {
+        for (xi, yi) in x.iter_mut().step_by(incx).take(n).zip(y.iter_mut().step_by(incy).take(n)) {
+            let (w, z) = (*xi, *yi);
+            *xi = w + z * h12;
+            *yi = w * h21 + z;
         }
     } else {
-        for _ in 0..n {
-            let w = x[ix];
-            let z = y[iy];
-            x[ix] = w * h11 + z;
-            y[iy] = -w + z * h22;
-            ix += incx;
-            iy += incy;
+        for (xi, yi) in x.iter_mut().step_by(incx).take(n).zip(y.iter_mut().step_by(incy).take(n)) {
+            let (w, z) = (*xi, *yi);
+            *xi = w * h11 + z;
+            *yi = -w + z * h22;
         }
     }
 }
 
 /// Dot product of f32 vectors accumulated in f64
+#[must_use]
+#[inline]
 pub fn dsdot(n: usize, sx: &[f32], incx: usize, sy: &[f32], incy: usize) -> f64 {
     if n == 0 {
         return 0.0;
     }
-    let mut sum = 0.0f64;
-    let mut ix = 0;
-    let mut iy = 0;
-    for _ in 0..n {
-        sum += sx[ix] as f64 * sy[iy] as f64;
-        ix += incx;
-        iy += incy;
-    }
-    sum
+    sx.iter().step_by(incx).take(n)
+        .zip(sy.iter().step_by(incy).take(n))
+        .fold(0.0f64, |acc, (&xi, &yi)| acc + xi as f64 * yi as f64)
 }
 
 /// Dot product of f32 vectors with f32 bias, accumulated in f64, returned as f32
+#[must_use]
+#[inline]
 pub fn sdsdot(n: usize, sb: f32, sx: &[f32], incx: usize, sy: &[f32], incy: usize) -> f32 {
     (sb as f64 + dsdot(n, sx, incx, sy, incy)) as f32
 }

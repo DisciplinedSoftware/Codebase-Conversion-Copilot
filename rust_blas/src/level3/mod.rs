@@ -3,6 +3,8 @@ use crate::types::{BlasFloat, Diag, Side, Trans, Uplo};
 /// General matrix-matrix multiply: C = alpha*op(A)*op(B) + beta*C
 /// Column-major: A[col*lda+row]
 /// op(A) is m×k, op(B) is k×n, C is m×n
+#[allow(clippy::too_many_arguments)]
+#[inline]
 pub fn gemm<T: BlasFloat>(
     transa: Trans,
     transb: Trans,
@@ -21,7 +23,7 @@ pub fn gemm<T: BlasFloat>(
     // Scale C by beta
     for j in 0..n {
         for i in 0..m {
-            c[j * ldc + i] = beta * c[j * ldc + i];
+            c[j * ldc + i] *= beta;
         }
     }
     if alpha == T::zero() {
@@ -49,6 +51,8 @@ pub fn gemm<T: BlasFloat>(
 
 /// Symmetric matrix-matrix: C = alpha*A*B + beta*C or alpha*B*A + beta*C
 /// A is symmetric n×n (side Left: A is m×m, side Right: A is n×n)
+#[allow(clippy::too_many_arguments)]
+#[inline]
 pub fn symm<T: BlasFloat>(
     side: Side,
     uplo: Uplo,
@@ -66,7 +70,7 @@ pub fn symm<T: BlasFloat>(
     // Scale C
     for j in 0..n {
         for i in 0..m {
-            c[j * ldc + i] = beta * c[j * ldc + i];
+            c[j * ldc + i] *= beta;
         }
     }
     if alpha == T::zero() {
@@ -131,6 +135,8 @@ pub fn symm<T: BlasFloat>(
 /// Symmetric rank-k update: C = alpha*op(A)*op(A)^T + beta*C
 /// Trans::No: A is n×k, C is n×n
 /// Trans::Yes: A is k×n, C is n×n
+#[allow(clippy::too_many_arguments)]
+#[inline]
 pub fn syrk<T: BlasFloat>(
     uplo: Uplo,
     trans: Trans,
@@ -148,14 +154,14 @@ pub fn syrk<T: BlasFloat>(
         Uplo::Upper => {
             for j in 0..n {
                 for i in 0..=j {
-                    c[j * ldc + i] = beta * c[j * ldc + i];
+                    c[j * ldc + i] *= beta;
                 }
             }
         }
         Uplo::Lower => {
             for j in 0..n {
                 for i in j..n {
-                    c[j * ldc + i] = beta * c[j * ldc + i];
+                    c[j * ldc + i] *= beta;
                 }
             }
         }
@@ -214,6 +220,8 @@ pub fn syrk<T: BlasFloat>(
 
 /// Symmetric rank-2k update:
 /// C = alpha*op(A)*op(B)^T + alpha*op(B)*op(A)^T + beta*C
+#[allow(clippy::too_many_arguments)]
+#[inline]
 pub fn syr2k<T: BlasFloat>(
     uplo: Uplo,
     trans: Trans,
@@ -232,14 +240,14 @@ pub fn syr2k<T: BlasFloat>(
         Uplo::Upper => {
             for j in 0..n {
                 for i in 0..=j {
-                    c[j * ldc + i] = beta * c[j * ldc + i];
+                    c[j * ldc + i] *= beta;
                 }
             }
         }
         Uplo::Lower => {
             for j in 0..n {
                 for i in j..n {
-                    c[j * ldc + i] = beta * c[j * ldc + i];
+                    c[j * ldc + i] *= beta;
                 }
             }
         }
@@ -301,6 +309,8 @@ pub fn syr2k<T: BlasFloat>(
 /// Side::Left:  B = alpha*op(A)*B
 /// Side::Right: B = alpha*B*op(A)
 /// A is triangular
+#[allow(clippy::too_many_arguments)]
+#[inline]
 pub fn trmm<T: BlasFloat>(
     side: Side,
     uplo: Uplo,
@@ -476,6 +486,8 @@ pub fn trmm<T: BlasFloat>(
 
 /// Triangular solve: op(A)*X = alpha*B or X*op(A) = alpha*B
 /// Overwrites B with X
+#[allow(clippy::too_many_arguments)]
+#[inline]
 pub fn trsm<T: BlasFloat>(
     side: Side,
     uplo: Uplo,
@@ -497,7 +509,7 @@ pub fn trsm<T: BlasFloat>(
     // Scale B by alpha
     for j in 0..n {
         for i in 0..m {
-            b[j * ldb + i] = alpha * b[j * ldb + i];
+            b[j * ldb + i] *= alpha;
         }
     }
 
@@ -510,7 +522,7 @@ pub fn trsm<T: BlasFloat>(
                     for j in 0..n {
                         for r in (0..m).rev() {
                             if nounit {
-                                b[j * ldb + r] = b[j * ldb + r] / a[r * lda + r];
+                                b[j * ldb + r] /= a[r * lda + r];
                             }
                             let xrj = b[j * ldb + r];
                             for i in 0..r {
@@ -527,9 +539,9 @@ pub fn trsm<T: BlasFloat>(
                             for k in 0..r {
                                 sum += a[r * lda + k] * b[j * ldb + k];
                             }
-                            b[j * ldb + r] = b[j * ldb + r] - sum;
+                            b[j * ldb + r] -= sum;
                             if nounit {
-                                b[j * ldb + r] = b[j * ldb + r] / a[r * lda + r];
+                                b[j * ldb + r] /= a[r * lda + r];
                             }
                         }
                     }
@@ -543,9 +555,9 @@ pub fn trsm<T: BlasFloat>(
                                 // A(r,k) = a[k*lda+r] lower tri
                                 sum += a[k * lda + r] * b[j * ldb + k];
                             }
-                            b[j * ldb + r] = b[j * ldb + r] - sum;
+                            b[j * ldb + r] -= sum;
                             if nounit {
-                                b[j * ldb + r] = b[j * ldb + r] / a[r * lda + r];
+                                b[j * ldb + r] /= a[r * lda + r];
                             }
                         }
                     }
@@ -559,9 +571,9 @@ pub fn trsm<T: BlasFloat>(
                                 // A^T(r,k) = A(k,r) = a[r*lda+k] lower tri
                                 sum += a[r * lda + k] * b[j * ldb + k];
                             }
-                            b[j * ldb + r] = b[j * ldb + r] - sum;
+                            b[j * ldb + r] -= sum;
                             if nounit {
-                                b[j * ldb + r] = b[j * ldb + r] / a[r * lda + r];
+                                b[j * ldb + r] /= a[r * lda + r];
                             }
                         }
                     }
@@ -580,9 +592,9 @@ pub fn trsm<T: BlasFloat>(
                                 // A(k,j) = a[j*lda+k] upper tri, k<=j
                                 sum += b[k * ldb + i] * a[j * lda + k];
                             }
-                            b[j * ldb + i] = b[j * ldb + i] - sum;
+                            b[j * ldb + i] -= sum;
                             if nounit {
-                                b[j * ldb + i] = b[j * ldb + i] / a[j * lda + j];
+                                b[j * ldb + i] /= a[j * lda + j];
                             }
                         }
                     }
@@ -596,9 +608,9 @@ pub fn trsm<T: BlasFloat>(
                                 // A^T(k,j) = A(j,k) = a[k*lda+j] upper tri
                                 sum += b[k * ldb + i] * a[k * lda + j];
                             }
-                            b[j * ldb + i] = b[j * ldb + i] - sum;
+                            b[j * ldb + i] -= sum;
                             if nounit {
-                                b[j * ldb + i] = b[j * ldb + i] / a[j * lda + j];
+                                b[j * ldb + i] /= a[j * lda + j];
                             }
                         }
                     }
@@ -612,9 +624,9 @@ pub fn trsm<T: BlasFloat>(
                                 // A(k,j) = a[j*lda+k] lower tri, k>=j
                                 sum += b[k * ldb + i] * a[j * lda + k];
                             }
-                            b[j * ldb + i] = b[j * ldb + i] - sum;
+                            b[j * ldb + i] -= sum;
                             if nounit {
-                                b[j * ldb + i] = b[j * ldb + i] / a[j * lda + j];
+                                b[j * ldb + i] /= a[j * lda + j];
                             }
                         }
                     }
@@ -628,9 +640,9 @@ pub fn trsm<T: BlasFloat>(
                                 // A^T(k,j) = A(j,k) = a[k*lda+j] lower tri
                                 sum += b[k * ldb + i] * a[k * lda + j];
                             }
-                            b[j * ldb + i] = b[j * ldb + i] - sum;
+                            b[j * ldb + i] -= sum;
                             if nounit {
-                                b[j * ldb + i] = b[j * ldb + i] / a[j * lda + j];
+                                b[j * ldb + i] /= a[j * lda + j];
                             }
                         }
                     }

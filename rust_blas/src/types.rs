@@ -11,46 +11,47 @@ pub trait BlasFloat:
     + std::ops::AddAssign
     + std::ops::SubAssign
     + std::ops::MulAssign
+    + std::ops::DivAssign
 {
-    fn zero() -> Self;
-    fn one() -> Self;
-    fn two() -> Self;
-    fn from_f64(v: f64) -> Self;
-    fn abs(self) -> Self;
-    fn sqrt(self) -> Self;
-    fn signum(self) -> Self;
-    fn max(self, other: Self) -> Self;
-    fn min(self, other: Self) -> Self;
-    fn is_positive(self) -> bool;
-    fn is_negative(self) -> bool;
+    #[must_use] fn zero() -> Self;
+    #[must_use] fn one() -> Self;
+    #[must_use] fn two() -> Self;
+    #[must_use] fn from_f64(v: f64) -> Self;
+    #[must_use] fn abs(self) -> Self;
+    #[must_use] fn sqrt(self) -> Self;
+    #[must_use] fn signum(self) -> Self;
+    #[must_use] fn max(self, other: Self) -> Self;
+    #[must_use] fn min(self, other: Self) -> Self;
+    #[must_use] fn is_positive(self) -> bool;
+    #[must_use] fn is_negative(self) -> bool;
 }
 
 impl BlasFloat for f32 {
-    fn zero() -> Self { 0.0 }
-    fn one() -> Self { 1.0 }
-    fn two() -> Self { 2.0 }
-    fn from_f64(v: f64) -> Self { v as f32 }
-    fn abs(self) -> Self { f32::abs(self) }
-    fn sqrt(self) -> Self { f32::sqrt(self) }
-    fn signum(self) -> Self { f32::signum(self) }
-    fn max(self, other: Self) -> Self { if self > other { self } else { other } }
-    fn min(self, other: Self) -> Self { if self < other { self } else { other } }
-    fn is_positive(self) -> bool { self > 0.0 }
-    fn is_negative(self) -> bool { self < 0.0 }
+    #[inline] fn zero() -> Self { 0.0 }
+    #[inline] fn one() -> Self { 1.0 }
+    #[inline] fn two() -> Self { 2.0 }
+    #[inline] fn from_f64(v: f64) -> Self { v as f32 }
+    #[inline] fn abs(self) -> Self { self.abs() }
+    #[inline] fn sqrt(self) -> Self { self.sqrt() }
+    #[inline] fn signum(self) -> Self { self.signum() }
+    #[inline] fn max(self, other: Self) -> Self { self.max(other) }
+    #[inline] fn min(self, other: Self) -> Self { self.min(other) }
+    #[inline] fn is_positive(self) -> bool { self > 0.0 }
+    #[inline] fn is_negative(self) -> bool { self < 0.0 }
 }
 
 impl BlasFloat for f64 {
-    fn zero() -> Self { 0.0 }
-    fn one() -> Self { 1.0 }
-    fn two() -> Self { 2.0 }
-    fn from_f64(v: f64) -> Self { v }
-    fn abs(self) -> Self { f64::abs(self) }
-    fn sqrt(self) -> Self { f64::sqrt(self) }
-    fn signum(self) -> Self { f64::signum(self) }
-    fn max(self, other: Self) -> Self { if self > other { self } else { other } }
-    fn min(self, other: Self) -> Self { if self < other { self } else { other } }
-    fn is_positive(self) -> bool { self > 0.0 }
-    fn is_negative(self) -> bool { self < 0.0 }
+    #[inline] fn zero() -> Self { 0.0 }
+    #[inline] fn one() -> Self { 1.0 }
+    #[inline] fn two() -> Self { 2.0 }
+    #[inline] fn from_f64(v: f64) -> Self { v }
+    #[inline] fn abs(self) -> Self { self.abs() }
+    #[inline] fn sqrt(self) -> Self { self.sqrt() }
+    #[inline] fn signum(self) -> Self { self.signum() }
+    #[inline] fn max(self, other: Self) -> Self { self.max(other) }
+    #[inline] fn min(self, other: Self) -> Self { self.min(other) }
+    #[inline] fn is_positive(self) -> bool { self > 0.0 }
+    #[inline] fn is_negative(self) -> bool { self < 0.0 }
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
