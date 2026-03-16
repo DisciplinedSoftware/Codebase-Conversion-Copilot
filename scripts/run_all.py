@@ -463,11 +463,22 @@ def main():
     print("Bentley Systems — BLAS Performance & Accuracy Pipeline")
     print("=" * 60)
 
+    FORTRAN_CACHE = "/tmp/fortran_bench.json"
     if args.skip_fortran:
-        print("\n[1/4] Skipping Fortran benchmark (--skip-fortran)")
-        fortran_df = pd.DataFrame(columns=["routine", "precision", "n", "mean_ns", "std_ns", "source"])
+        if os.path.exists(FORTRAN_CACHE):
+            print(f"\n[1/4] Loading cached Fortran benchmark from {FORTRAN_CACHE}...")
+            rows = json.load(open(FORTRAN_CACHE))
+            fortran_df = pd.DataFrame(rows)
+            if "source" not in fortran_df.columns:
+                fortran_df["source"] = "fortran"
+            print(f"  Fortran: {len(fortran_df)} benchmark rows (cached)")
+        else:
+            print("\n[1/4] Skipping Fortran benchmark (--skip-fortran, no cache found)")
+            fortran_df = pd.DataFrame(columns=["routine", "precision", "n", "mean_ns", "std_ns", "source"])
     else:
         fortran_df = run_fortran_bench()
+        fortran_df.to_json(FORTRAN_CACHE, orient="records", indent=2)
+        print(f"  Cached Fortran results to {FORTRAN_CACHE}")
 
     if args.skip_accuracy:
         print("\n[2/4] Loading cached accuracy results from /tmp/accuracy_results.json...")
